@@ -37,7 +37,7 @@ const sendQuestion = async (ctx: any, questionId: number) => {
     }
 
     // Prepare buttons
-    const buttons = question.buttons.map(b => Markup.button.callback(toBoldUnicode(b.text), `btn:${b.id}`));
+    const buttons = question.buttons.map((b: any) => Markup.button.callback(toBoldUnicode(b.text), `btn:${b.id}`));
     const keyboard = Markup.inlineKeyboard(buttons, { columns: 1 });
 
     // Dynamic Link Replacement
