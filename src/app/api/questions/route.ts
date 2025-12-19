@@ -9,7 +9,7 @@ export async function GET() {
         });
 
         // Parse attachment JSON
-        const formattedQuestions = questions.map(q => ({
+        const formattedQuestions = questions.map((q: any) => ({
             ...q,
             attachment: q.attachment ? JSON.parse(q.attachment) : undefined
         }));
