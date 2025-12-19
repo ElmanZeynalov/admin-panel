@@ -13,10 +13,10 @@ export async function GET() {
         });
 
         // Safe serialization for BigInt (Telegram ID)
-        const safeUsers = users.map(user => ({
+        const safeUsers = users.map((user: any) => ({
             ...user,
             telegramId: user.telegramId.toString(),
-            messages: user.messages.map(msg => ({
+            messages: user.messages.map((msg: any) => ({
                 ...msg,
                 time: new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             }))
