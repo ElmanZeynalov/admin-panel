@@ -1,0 +1,49 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Question {
+  id            Int      @id @default(autoincrement())
+  text          String
+  isActive      Boolean  @default(true)
+  attachment    String?  // Stored as JSON string { type, url, name }
+  externalLink  String?  // URL to replace "burada" with
+  defaultNextId Int?
+  buttons       Button[]
+}
+
+model Button {
+  id             Int      @id @default(autoincrement())
+  text           String
+  questionId     Int
+  nextQuestionId Int?
+  question       Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id           Int       @id @default(autoincrement())
+  telegramId   BigInt    @unique
+  username     String?   // Telegram username
+  fullName     String?   // Real name provided by user
+  isAnonim     Boolean   @default(false)
+  currentQuestionId Int? // Track conversation state
+  createdAt    DateTime  @default(now())
+  messages     Message[]
+}
+
+model Message {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  text      String
+  sender    String   // 'user' | 'bot'
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+}
