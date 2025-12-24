@@ -15,5 +15,18 @@ export async function POST(req: Request) {
 }
 
 export async function GET() {
-    return NextResponse.json({ status: 'active', mode: 'webhook' });
+    const token = process.env.BOT_TOKEN;
+    const hasToken = !!token;
+    const tokenLength = token ? token.length : 0;
+    const tokenStart = token ? token.substring(0, 5) : 'N/A';
+
+    return NextResponse.json({
+        status: 'active',
+        mode: 'webhook',
+        debug: {
+            hasToken,
+            tokenLength,
+            tokenStart
+        }
+    });
 }
