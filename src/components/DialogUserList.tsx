@@ -52,18 +52,25 @@ const DialogUserList = () => {
     }, []);
 
     const downloadPDF = async (user: UserData) => {
+        // DEBUG ALERT: To confirm latest code is running
+        alert('DEBUG: PDF Yükləmə Başladıldı (V3)...');
+
         try {
             console.log('Starting PDF generation for:', user.name);
             const doc = new jsPDF();
 
+            // Simple ASCII conversion for safe testing (Temporary fix for encoding crashes)
+            const safeText = (text: string) => text.replace(/[^\x00-\x7F]/g, "?");
+
             // Add Header
             doc.setFontSize(16);
-            doc.text(`Dialog: ${user.name}`, 14, 20);
+            doc.text(`Dialog: ${safeText(user.name)}`, 14, 20);
 
             doc.setFontSize(10);
             doc.text(`ID: ${user.id} | Status: ${user.isAnonim ? 'Anonim' : 'Registered'}`, 14, 28);
-            if (user.username) doc.text(`Username: @${user.username}`, 14, 34);
+            if (user.username) doc.text(`Username: @${safeText(user.username)}`, 14, 34);
             if (user.phoneNumber) doc.text(`Phone: ${user.phoneNumber}`, 14, 40);
+
             const dateY = user.phoneNumber ? 46 : (user.username ? 40 : 34);
             doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, dateY);
 
@@ -71,7 +78,7 @@ const DialogUserList = () => {
             const tableBody = user.messages.map(msg => [
                 msg.sender === 'bot' ? 'Bot' : 'User',
                 msg.time,
-                msg.text
+                safeText(msg.text)
             ]);
 
             // Add Table
@@ -100,10 +107,12 @@ const DialogUserList = () => {
             const dateStr = new Date().toISOString().split('T')[0];
             const filename = `dialog_${safeName}_${dateStr}.pdf`;
             doc.save(filename);
+
             console.log('PDF saved successfully');
+            alert('PDF Uğurla Yadda Saxlanıldı! Yükləmələr qovluğunu yoxlayın.');
         } catch (error: any) {
             console.error('PDF Generation Error:', error);
-            alert(`PDF yüklənərkən xəta baş verdi: ${error.message || error}`);
+            alert(`PDF XƏTASI: ${error.message || error}`);
         }
     };
 

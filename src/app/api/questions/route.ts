@@ -28,10 +28,14 @@ export async function POST(request: Request) {
         // ideally we would upsert, but for a visual editor, full replace is often safer/easier
 
         // 1. Delete removed questions
-        const incomingIds = data.map((q: any) => q.id);
-        await prisma.question.deleteMany({
+        // 1. Delete removed questions
+        const incomingIds = data.map((q: any) => Number(q.id));
+        console.log('Received IDs to keep:', incomingIds);
+
+        const deleteResult = await prisma.question.deleteMany({
             where: { id: { notIn: incomingIds } }
         });
+        console.log('Deleted questions count:', deleteResult.count);
 
         // 2. Upsert each question
         await prisma.$transaction(
