@@ -8,27 +8,37 @@ interface BotPreviewProps {
 
 const BotPreview = ({ questions }: BotPreviewProps) => {
     // Chat Simulation State
-    const [previewMode, setPreviewMode] = useState<'interactive' | 'list'>('interactive');
-    const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
-    const [currentStep, setCurrentStep] = useState(0);
-    const [userInputValue, setUserInputValue] = useState('');
+    const [language, setLanguage] = useState<'az' | 'ru'>('az');
 
     // Initialize chat with first question
     useEffect(() => {
         if (questions.length > 0 && chatHistory.length === 0) {
             resetChat();
         }
-    }, [questions]);
+    }, [questions, language]); // Reset when language changes
+
+    const getLocalizedText = (q: Question | undefined, type: 'text' | 'button', btnIndex?: number) => {
+        if (!q) return '';
+        if (type === 'text') {
+            return (language === 'ru' && q.textRu) ? q.textRu : q.text;
+        }
+        if (type === 'button' && typeof btnIndex === 'number' && q.buttons) {
+            const btn = q.buttons[btnIndex];
+            return (language === 'ru' && btn.textRu) ? btn.textRu : btn.text;
+        }
+        return '';
+    };
 
     const resetChat = () => {
         const activeQuestions = questions.filter(q => q.isActive);
         if (activeQuestions.length > 0) {
+            const q = activeQuestions[0];
             setChatHistory([{
                 id: Date.now(),
                 type: 'bot',
-                text: activeQuestions[0].text,
-                buttons: activeQuestions[0].buttons,
-                attachment: activeQuestions[0].attachment
+                text: getLocalizedText(q, 'text'),
+                buttons: q.buttons?.map((b, i) => ({ ...b, text: getLocalizedText(q, 'button', i) })),
+                attachment: q.attachment
             }]);
             setCurrentStep(0);
         } else {
@@ -53,22 +63,27 @@ const BotPreview = ({ questions }: BotPreviewProps) => {
         const currentQuestion = activeQuestions[currentStep];
         let nextQuestion: Question | undefined;
 
-        // Determine Next Question Logic
+        // Determine Next Question Logic (Simplified for Preview)
+        // Note: Logic matching uses the DISPLAYED text, which might fail if logic relies on IDs but we compare text.
+        // For accurate preview, we should match by ID, but we only get 'text' here.
+        // Let's rely on finding the button object by finding a button that matches the clicked text.
+
         if (text) {
-            // Check if text matches a button
-            const clickedButton = currentQuestion.buttons?.find(b => b.text === text);
+            // Check if text matches a button's localized text
+            const clickedButton = currentQuestion.buttons?.find(b => {
+                const btnText = (language === 'ru' && b.textRu) ? b.textRu : b.text;
+                return btnText === text;
+            });
+
             if (clickedButton && clickedButton.nextQuestionId) {
-                // Branch by Button
                 nextQuestion = questions.find(q => q.id === clickedButton.nextQuestionId);
             } else if (currentQuestion.defaultNextId) {
-                // Branch by Text Reply (default)
                 if (currentQuestion.defaultNextId === -1) {
-                    nextQuestion = undefined; // End Dialog
+                    nextQuestion = undefined;
                 } else {
                     nextQuestion = questions.find(q => q.id === currentQuestion.defaultNextId);
                 }
             } else {
-                // Fallback: Next in list
                 if (currentStep < activeQuestions.length - 1) {
                     nextQuestion = activeQuestions[currentStep + 1];
                 }
@@ -79,22 +94,19 @@ const BotPreview = ({ questions }: BotPreviewProps) => {
             nextBotMsg = {
                 id: Date.now() + 1,
                 type: 'bot',
-                text: nextQuestion.text,
-                buttons: nextQuestion.buttons,
+                text: getLocalizedText(nextQuestion, 'text'),
+                buttons: nextQuestion.buttons?.map((b, i) => ({ ...b, text: getLocalizedText(nextQuestion, 'button', i) })),
                 attachment: nextQuestion.attachment
             };
 
-            // Find index of next question for step tracking
             const nextStepIndex = activeQuestions.findIndex(q => q.id === nextQuestion?.id);
             if (nextStepIndex !== -1) {
                 setCurrentStep(nextStepIndex);
             } else {
-                // Fallback if jumping to inactive or unknown question, just hold step
                 setCurrentStep(prev => prev + 1);
             }
         } else {
-            // End of dialog or manual end
-            setCurrentStep(activeQuestions.length); // Move past end
+            setCurrentStep(activeQuestions.length);
         }
 
         setChatHistory(prev => {
@@ -103,7 +115,6 @@ const BotPreview = ({ questions }: BotPreviewProps) => {
             return newHistory;
         });
 
-        // Removed simple increment, handled above
         setUserInputValue('');
     };
 
@@ -124,24 +135,36 @@ const BotPreview = ({ questions }: BotPreviewProps) => {
                 </div>
 
                 {/* Telegram Header */}
-                <div className="absolute top-0 w-full h-[100px] bg-[#2A2A2A] z-0 pt-[44px] px-4 flex items-center gap-3 border-b border-white/10">
-                    <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-lg">
-                        B
+                <div className="absolute top-0 w-full h-[100px] bg-[#2A2A2A] z-0 pt-[44px] px-4 flex items-center justify-between border-b border-white/10">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-lg">
+                            B
+                        </div>
+                        <div>
+                            <h3 className="text-white font-semibold text-sm">Bot Assistant</h3>
+                            <p className="text-blue-400 text-xs text-left">bot</p>
+                        </div>
                     </div>
-                    <div>
-                        <h3 className="text-white font-semibold text-sm">Bot Assistant</h3>
-                        <p className="text-blue-400 text-xs">bot</p>
-                    </div>
+                    {/* Language Toggle */}
+                    <button
+                        onClick={() => setLanguage(prev => prev === 'az' ? 'ru' : 'az')}
+                        className="flex items-center gap-1 px-2 py-1 bg-white/10 rounded-lg text-xs font-semibold text-white/80 hover:bg-white/20 transition-colors"
+                    >
+                        <span>{language.toUpperCase()}</span>
+                        <RefreshCcw className="w-3 h-3 opacity-50" />
+                    </button>
                 </div>
 
                 {/* Main Content Area */}
                 <div className="w-full h-full bg-[#0E1621] pt-[110px] pb-[80px] px-3 overflow-y-auto space-y-3 scrollbar-hide">
                     <div className="flex justify-center mb-4">
-                        <span className="bg-[#182533] text-gray-400 text-[10px] px-2 py-1 rounded-full">Bugün</span>
+                        <span className="bg-[#182533] text-gray-400 text-[10px] px-2 py-1 rounded-full">
+                            {language === 'az' ? 'Bugün' : 'Сегодня'}
+                        </span>
                     </div>
 
                     {previewMode === 'list' ? (
-                        // List Mode: Show all active questions
+                        // List Mode
                         questions
                             .filter((q) => q.isActive && q.text.trim().length > 0)
                             .map((question) => (
@@ -158,22 +181,25 @@ const BotPreview = ({ questions }: BotPreviewProps) => {
                                                         </div>
                                                         <div className="flex-1 min-w-0">
                                                             <p className="text-white text-xs font-medium truncate">{question.attachment.name}</p>
-                                                            <p className="text-blue-200 text-[10px]">Fayl</p>
+                                                            <p className="text-blue-200 text-[10px] text-left">
+                                                                {language === 'az' ? 'Fayl' : 'Файл'}
+                                                            </p>
                                                         </div>
                                                     </div>
                                                 )}
                                             </div>
                                         )}
-                                        {question.text}
+                                        {/* Display localized text in list mode too? Or keep raw? Let's use localized for consistency */}
+                                        {(language === 'ru' && question.textRu) ? question.textRu : question.text}
                                     </div>
                                     {question.buttons && question.buttons.length > 0 && (
                                         <div className="mt-2 flex flex-wrap gap-2 max-w-[85%]">
-                                            {question.buttons.map((btn) => (
+                                            {question.buttons.map((btn, i) => (
                                                 <button
                                                     key={btn.id}
                                                     className="bg-[#2B5278]/20 hover:bg-[#2B5278]/30 border border-[#2B5278] text-[#2B5278] px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
                                                 >
-                                                    {btn.text}
+                                                    {(language === 'ru' && btn.textRu) ? btn.textRu : btn.text}
                                                 </button>
                                             ))}
                                         </div>
@@ -197,7 +223,9 @@ const BotPreview = ({ questions }: BotPreviewProps) => {
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                         <p className="text-white text-xs font-medium truncate">{msg.attachment.name}</p>
-                                                        <p className="text-blue-200 text-[10px]">Fayl</p>
+                                                        <p className="text-blue-200 text-[10px] text-left">
+                                                            {language === 'az' ? 'Fayl' : 'Файл'}
+                                                        </p>
                                                     </div>
                                                 </div>
                                             )}
