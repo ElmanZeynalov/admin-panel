@@ -36,6 +36,7 @@ model User {
   username     String?   // Telegram username
   fullName     String?   // Real name provided by user
   isAnonim     Boolean   @default(false)
+  phoneNumber  String?   // User phone number
   language     String?   // 'az' | 'ru'
   currentQuestionId Int? // Track conversation state
   createdAt    DateTime  @default(now())

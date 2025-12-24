@@ -15,6 +15,8 @@ interface Message {
 interface UserData {
     id: number;
     name: string;
+    username?: string;
+    phoneNumber?: string;
     isAnonim: boolean;
     messages: Message[];
 }
@@ -33,6 +35,8 @@ const DialogUserList = () => {
                 const formattedUsers = Array.isArray(data) ? data.map((u: any) => ({
                     id: u.id,
                     name: u.fullName || u.username || (u.isAnonim ? 'Anonim' : `User #${u.id}`),
+                    username: u.username,
+                    phoneNumber: u.phoneNumber,
                     isAnonim: u.isAnonim,
                     messages: Array.isArray(u.messages) ? u.messages.map((m: any) => ({
                         id: m.id,
@@ -58,7 +62,10 @@ const DialogUserList = () => {
 
             doc.setFontSize(10);
             doc.text(`ID: ${user.id} | Status: ${user.isAnonim ? 'Anonim' : 'Registered'}`, 14, 28);
-            doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, 34);
+            if (user.username) doc.text(`Username: @${user.username}`, 14, 34);
+            if (user.phoneNumber) doc.text(`Phone: ${user.phoneNumber}`, 14, 40);
+            const dateY = user.phoneNumber ? 46 : (user.username ? 40 : 34);
+            doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, dateY);
 
             // Prepare Table Data
             const tableBody = user.messages.map(msg => [
@@ -69,7 +76,7 @@ const DialogUserList = () => {
 
             // Add Table
             autoTable(doc, {
-                startY: 40,
+                startY: dateY + 6,
                 head: [['Sender', 'Time', 'Message']],
                 body: tableBody,
                 styles: { fontSize: 9 },
@@ -91,7 +98,8 @@ const DialogUserList = () => {
             // Sanitize filename
             const safeName = user.name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
             const dateStr = new Date().toISOString().split('T')[0];
-            doc.save(`dialog_${safeName}_${dateStr}.pdf`);
+            const filename = `dialog_${safeName}_${dateStr}.pdf`;
+            doc.save(filename);
             console.log('PDF saved successfully');
         } catch (error: any) {
             console.error('PDF Generation Error:', error);
@@ -133,11 +141,29 @@ const DialogUserList = () => {
                                     {user.name.charAt(0).toUpperCase()}
                                 </div>
                                 <div>
-                                    <p className="font-medium text-gray-900">{user.name}</p>
-                                    <p className="text-xs text-gray-500 flex items-center mt-0.5">
-                                        <MessageSquare className="w-3 h-3 mr-1" />
-                                        {user.messages.length} mesaj
-                                    </p>
+                                    <div className="flex items-center gap-2">
+                                        <p className="font-medium text-gray-900">{user.name}</p>
+                                        {user.username && (
+                                            <span className="text-xs bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded border border-blue-100">
+                                                @{user.username}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="flex flex-col gap-0.5 mt-0.5">
+                                        <p className="text-xs text-gray-500 flex items-center">
+                                            <MessageSquare className="w-3 h-3 mr-1" />
+                                            {user.messages.length} mesaj
+                                        </p>
+                                        {user.phoneNumber ? (
+                                            <p className="text-xs text-green-600 font-medium">
+                                                📞 {user.phoneNumber}
+                                            </p>
+                                        ) : (
+                                            <p className="text-[10px] text-gray-400 italic">
+                                                Nömrə yoxdur
+                                            </p>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                             <button
