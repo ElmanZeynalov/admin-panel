@@ -47,45 +47,56 @@ const DialogUserList = () => {
             .finally(() => setLoading(false));
     }, []);
 
-    const downloadPDF = (user: UserData) => {
-        const doc = new jsPDF();
+    const downloadPDF = async (user: UserData) => {
+        try {
+            console.log('Starting PDF generation for:', user.name);
+            const doc = new jsPDF();
 
-        // Add Header
-        doc.setFontSize(16);
-        doc.text(`Dialog: ${user.name}`, 14, 20);
+            // Add Header
+            doc.setFontSize(16);
+            doc.text(`Dialog: ${user.name}`, 14, 20);
 
-        doc.setFontSize(10);
-        doc.text(`ID: ${user.id} | Status: ${user.isAnonim ? 'Anonim' : 'Registered'}`, 14, 28);
-        doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, 34);
+            doc.setFontSize(10);
+            doc.text(`ID: ${user.id} | Status: ${user.isAnonim ? 'Anonim' : 'Registered'}`, 14, 28);
+            doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, 34);
 
-        // Prepare Table Data
-        const tableBody = user.messages.map(msg => [
-            msg.sender === 'bot' ? 'Bot' : 'User',
-            msg.time,
-            msg.text
-        ]);
+            // Prepare Table Data
+            const tableBody = user.messages.map(msg => [
+                msg.sender === 'bot' ? 'Bot' : 'User',
+                msg.time,
+                msg.text
+            ]);
 
-        // Add Table
-        autoTable(doc, {
-            startY: 40,
-            head: [['Sender', 'Time', 'Message']],
-            body: tableBody,
-            styles: { fontSize: 9 },
-            headStyles: { fillColor: [66, 133, 244] }, // Blue header
-            columnStyles: {
-                0: { cellWidth: 20 },
-                1: { cellWidth: 30 },
-                2: { cellWidth: 'auto' }
-            },
-            didParseCell: (data) => {
-                // Color code rows based on sender
-                if (data.section === 'body' && data.row.raw[0] === 'Bot') {
-                    data.cell.styles.fillColor = [240, 248, 255]; // Light blue for bot
+            // Add Table
+            autoTable(doc, {
+                startY: 40,
+                head: [['Sender', 'Time', 'Message']],
+                body: tableBody,
+                styles: { fontSize: 9 },
+                headStyles: { fillColor: [66, 133, 244] }, // Blue header
+                columnStyles: {
+                    0: { cellWidth: 20 },
+                    1: { cellWidth: 30 },
+                    2: { cellWidth: 'auto' }
+                },
+                didParseCell: (data) => {
+                    // Color code rows based on sender
+                    const rawRow = data.row.raw as unknown as string[];
+                    if (data.section === 'body' && rawRow[0] === 'Bot') {
+                        data.cell.styles.fillColor = [240, 248, 255]; // Light blue for bot
+                    }
                 }
-            }
-        });
+            });
 
-        doc.save(`dialog_${user.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`);
+            // Sanitize filename
+            const safeName = user.name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+            const dateStr = new Date().toISOString().split('T')[0];
+            doc.save(`dialog_${safeName}_${dateStr}.pdf`);
+            console.log('PDF saved successfully');
+        } catch (error: any) {
+            console.error('PDF Generation Error:', error);
+            alert(`PDF yüklənərkən xəta baş verdi: ${error.message || error}`);
+        }
     };
 
     if (loading) {
@@ -132,6 +143,7 @@ const DialogUserList = () => {
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
+                                    e.preventDefault();
                                     downloadPDF(user);
                                 }}
                                 className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
