@@ -20,13 +20,14 @@ const QuestionFormModal = ({ isOpen, onClose, onSave, initialData, title, existi
             if (initialData) {
                 setFormData({
                     text: initialData.text,
+                    textRu: initialData.textRu || '',
                     buttons: initialData.buttons ? [...initialData.buttons] : [],
                     attachment: initialData.attachment,
                     externalLink: initialData.externalLink || '',
                     defaultNextId: initialData.defaultNextId || null
                 });
             } else {
-                setFormData({ text: '', buttons: [], defaultNextId: null, externalLink: '' });
+                setFormData({ text: '', textRu: '', buttons: [], defaultNextId: null, externalLink: '' });
             }
         }
     }, [isOpen, initialData]);
@@ -69,7 +70,7 @@ const QuestionFormModal = ({ isOpen, onClose, onSave, initialData, title, existi
         const newButtonId = Math.max(...formData.buttons.map(b => b.id), 0) + 1;
         setFormData({
             ...formData,
-            buttons: [...formData.buttons, { id: newButtonId, text: '' }]
+            buttons: [...formData.buttons, { id: newButtonId, text: '', textRu: '' }]
         });
     };
 
@@ -77,6 +78,13 @@ const QuestionFormModal = ({ isOpen, onClose, onSave, initialData, title, existi
         setFormData({
             ...formData,
             buttons: formData.buttons.map(b => b.id === id ? { ...b, text } : b)
+        });
+    };
+
+    const updateButtonTextRu = (id: number, textRu: string) => {
+        setFormData({
+            ...formData,
+            buttons: formData.buttons.map(b => b.id === id ? { ...b, textRu } : b)
         });
     };
 
@@ -146,7 +154,15 @@ const QuestionFormModal = ({ isOpen, onClose, onSave, initialData, title, existi
                                 <textarea
                                     value={formData.text}
                                     onChange={(e) => setFormData({ ...formData, text: e.target.value })}
-                                    placeholder="Sualınızı bura yazın..."
+                                    placeholder="Sualınızı bura yazın (AZ)..."
+                                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all resize-none text-sm"
+                                    rows={3}
+                                />
+                                <div className="mt-2 text-xs font-semibold text-gray-500 uppercase">Rus Dili (Opsional)</div>
+                                <textarea
+                                    value={formData.textRu || ''}
+                                    onChange={(e) => setFormData({ ...formData, textRu: e.target.value })}
+                                    placeholder="Напишите вопрос здесь (RU)..."
                                     className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all resize-none text-sm"
                                     rows={3}
                                 />
@@ -162,7 +178,7 @@ const QuestionFormModal = ({ isOpen, onClose, onSave, initialData, title, existi
                                     className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                                 />
                                 <p className="text-xs text-gray-500">
-                                    Əgər mətndə <b>"burada"</b> sözü varsa, bu linkə yönləndirəcək.
+                                    Əgər mətndə <b>"burada"</b> (və ya RU versiyada <b>"здесь"</b>) sözü varsa, bu linkə yönləndirəcək.
                                 </p>
                             </div>
 
@@ -180,20 +196,34 @@ const QuestionFormModal = ({ isOpen, onClose, onSave, initialData, title, existi
 
                                 <div className="space-y-2">
                                     {formData.buttons.map((btn) => (
-                                        <div key={btn.id} className="flex gap-2 items-center">
-                                            <input
-                                                type="text"
-                                                value={btn.text}
-                                                onChange={(e) => updateButtonText(btn.id, e.target.value)}
-                                                placeholder="Button mətni"
-                                                className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                                            />
-                                            <button
-                                                onClick={() => removeButton(btn.id)}
-                                                className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
+                                        <div key={btn.id} className="flex flex-col gap-2 p-2 bg-gray-50 rounded-lg border border-gray-100">
+                                            <div className="flex gap-2 items-center">
+                                                <span className="text-xs font-bold text-gray-400 w-8">AZ</span>
+                                                <input
+                                                    type="text"
+                                                    value={btn.text}
+                                                    onChange={(e) => updateButtonText(btn.id, e.target.value)}
+                                                    placeholder="Button mətni (AZ)"
+                                                    className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                                                />
+                                                <button
+                                                    onClick={() => removeButton(btn.id)}
+                                                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                            <div className="flex gap-2 items-center">
+                                                <span className="text-xs font-bold text-gray-400 w-8">RU</span>
+                                                <input
+                                                    type="text"
+                                                    value={btn.textRu || ''}
+                                                    onChange={(e) => updateButtonTextRu(btn.id, e.target.value)}
+                                                    placeholder="Текст кнопки (RU)"
+                                                    className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                                                />
+                                                <div className="w-8"></div> {/* Spacer for alignment */}
+                                            </div>
                                         </div>
                                     ))}
                                     {formData.buttons.length === 0 && (

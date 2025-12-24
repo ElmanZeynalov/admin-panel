@@ -1,16 +1,18 @@
 export interface Question {
     id: number;
     text: string;
+    textRu?: string;
     isActive: boolean;
     externalLink?: string;
-    buttons?: { id: number; text: string; nextQuestionId?: number | null }[];
+    buttons?: { id: number; text: string; textRu?: string; nextQuestionId?: number | null }[];
     attachment?: { type: 'image' | 'file', url: string, name: string };
     defaultNextId?: number | null;
 }
 
 export interface NewQuestionState {
     text: string;
-    buttons: { id: number; text: string; nextQuestionId?: number | null }[];
+    textRu?: string;
+    buttons: { id: number; text: string; textRu?: string; nextQuestionId?: number | null }[];
     attachment?: { type: 'image' | 'file', url: string, name: string };
     externalLink?: string;
     defaultNextId?: number | null;

@@ -79,6 +79,7 @@ const BotDialogEditor = () => {
                     ? {
                         ...q,
                         text: data.text,
+                        textRu: data.textRu,
                         buttons: data.buttons.filter(b => b.text.trim()),
                         attachment: data.attachment,
                         externalLink: data.externalLink,
@@ -92,6 +93,7 @@ const BotDialogEditor = () => {
             setQuestions([...questions, {
                 id: newId,
                 text: data.text,
+                textRu: data.textRu,
                 isActive: true,
                 buttons: data.buttons.filter(b => b.text.trim()),
                 attachment: data.attachment,
