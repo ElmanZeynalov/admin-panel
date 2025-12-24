@@ -40,6 +40,7 @@ export async function POST(request: Request) {
                     where: { id: q.id },
                     update: {
                         text: q.text,
+                        textRu: q.textRu, // Add support for Russian text
                         isActive: q.isActive,
                         defaultNextId: q.defaultNextId,
                         attachment: q.attachment ? JSON.stringify(q.attachment) : null,
@@ -48,6 +49,7 @@ export async function POST(request: Request) {
                             deleteMany: {},
                             create: q.buttons.map((b: any) => ({
                                 text: b.text,
+                                textRu: b.textRu, // Add support for Russian button text
                                 nextQuestionId: b.nextQuestionId
                             }))
                         }
@@ -56,6 +58,7 @@ export async function POST(request: Request) {
                         // Removed 'id: q.id' because Prisma auto-increments it and threw an error.
                         // Ideally we should sync IDs, but this fixes the crash.
                         text: q.text,
+                        textRu: q.textRu, // Add support for Russian text
                         isActive: q.isActive,
                         defaultNextId: q.defaultNextId,
                         attachment: q.attachment ? JSON.stringify(q.attachment) : null,
@@ -63,6 +66,7 @@ export async function POST(request: Request) {
                         buttons: {
                             create: q.buttons.map((b: any) => ({
                                 text: b.text,
+                                textRu: b.textRu, // Add support for Russian button text
                                 nextQuestionId: b.nextQuestionId
                             }))
                         }

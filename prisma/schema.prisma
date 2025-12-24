@@ -13,6 +13,7 @@ datasource db {
 model Question {
   id            Int      @id @default(autoincrement())
   text          String
+  textRu        String?  // Russian translation
   isActive      Boolean  @default(true)
   attachment    String?  // Stored as JSON string { type, url, name }
   externalLink  String?  // URL to replace "burada" with
@@ -23,6 +24,7 @@ model Question {
 model Button {
   id             Int      @id @default(autoincrement())
   text           String
+  textRu         String?  // Russian translation
   questionId     Int
   nextQuestionId Int?
   question       Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
@@ -34,6 +36,7 @@ model User {
   username     String?   // Telegram username
   fullName     String?   // Real name provided by user
   isAnonim     Boolean   @default(false)
+  language     String?   // 'az' | 'ru'
   currentQuestionId Int? // Track conversation state
   createdAt    DateTime  @default(now())
   messages     Message[]

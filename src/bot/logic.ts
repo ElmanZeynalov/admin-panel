@@ -26,22 +26,32 @@ const toBoldUnicode = (text: string) => {
 };
 
 // Helper to send a question
+// Helper to send a question
 const sendQuestion = async (ctx: any, questionId: number) => {
+    const user = await getOrCreateUser(ctx);
     const question = await prisma.question.findUnique({
         where: { id: questionId },
         include: { buttons: true }
     });
 
     if (!question || !question.isActive) {
-        return ctx.reply('Söhbət bitdi və ya sual tapılmadı.');
+        const msg = user.language === 'ru' ? 'Разговор окончен или вопрос не найден.' : 'Söhbət bitdi və ya sual tapılmadı.';
+        return ctx.reply(msg);
     }
 
+    // Determine language-specific attributes
+    const lang = user.language === 'ru' ? 'ru' : 'az';
+    const textBase = (lang === 'ru' && question.textRu) ? question.textRu : question.text;
+
     // Prepare buttons
-    const buttons = question.buttons.map((b: any) => Markup.button.callback(toBoldUnicode(b.text), `btn:${b.id}`));
+    const buttons = question.buttons.map((b: any) => {
+        const btnText = (lang === 'ru' && b.textRu) ? b.textRu : b.text;
+        return Markup.button.callback(toBoldUnicode(btnText), `btn:${b.id}`);
+    });
     const keyboard = Markup.inlineKeyboard(buttons, { columns: 1 });
 
     // Dynamic Link Replacement
-    let displayText = `<b>${question.text}</b>`;
+    let displayText = `<b>${textBase}</b>`;
     if (question.externalLink) {
         // Ensure URL has protocol
         let url = question.externalLink;
@@ -49,8 +59,9 @@ const sendQuestion = async (ctx: any, questionId: number) => {
             url = 'https://' + url;
         }
 
-        // Replace "burada" and any suffixes (e.g. "buradan", "buradakı") with link
-        displayText = displayText.replace(/(burada\w*)/gi, `<a href="${url}">$1</a>`);
+        // Replace "burada" (and "здесь" for RU) with link
+        // Current logic works for 'burada'. Can extend for 'здесь'.
+        displayText = displayText.replace(/(burada\w*|здесь\w*)/gi, `<a href="${url}">$1</a>`);
     }
 
     let messageSent = false;
@@ -96,12 +107,12 @@ const sendQuestion = async (ctx: any, questionId: number) => {
 
     // Save Bot Message to History
     if (ctx.from) {
-        const user = await prisma.user.findUnique({ where: { telegramId: BigInt(ctx.from.id) } });
+        // user already fetched
         if (user) {
             await prisma.message.create({
                 data: {
                     userId: user.id,
-                    text: question.text,
+                    text: textBase, // Save the actual text sent
                     sender: 'bot'
                 }
             });
@@ -137,7 +148,22 @@ const getOrCreateUser = async (ctx: any) => {
 
 // Start Command
 bot.command('start', async (ctx) => {
-    await getOrCreateUser(ctx);
+    const user = await getOrCreateUser(ctx);
+
+    // If user has no language set, ask for it
+    if (!user.language) {
+        await ctx.reply('Zəhmət olmasa dil seçin / Пожалуйста, выберите язык:', {
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        { text: '🇦🇿 Azərbaycan dili', callback_data: 'lang:az' },
+                        { text: '🇷🇺 Русский язык', callback_data: 'lang:ru' }
+                    ]
+                ]
+            }
+        });
+        return;
+    }
 
     // Determine start question (lowest ID)
     const firstQuestion = await prisma.question.findFirst({
@@ -148,7 +174,47 @@ bot.command('start', async (ctx) => {
     if (firstQuestion) {
         await sendQuestion(ctx, firstQuestion.id);
     } else {
-        ctx.reply('Bot hal-hazırda aktiv deyil.');
+        const msg = user.language === 'ru' ? 'Бот в данный момент не активен.' : 'Bot hal-hazırda aktiv deyil.';
+        ctx.reply(msg);
+    }
+});
+
+// Language Selection Actions
+bot.action('lang:az', async (ctx) => {
+    const user = await getOrCreateUser(ctx);
+    await prisma.user.update({
+        where: { id: user.id },
+        data: { language: 'az' }
+    });
+    await ctx.answerCbQuery('Azərbaycan dili seçildi.');
+
+    // Start flow
+    const firstQuestion = await prisma.question.findFirst({
+        where: { isActive: true },
+        orderBy: { id: 'asc' }
+    });
+
+    if (firstQuestion) {
+        await sendQuestion(ctx, firstQuestion.id);
+    }
+});
+
+bot.action('lang:ru', async (ctx) => {
+    const user = await getOrCreateUser(ctx);
+    await prisma.user.update({
+        where: { id: user.id },
+        data: { language: 'ru' }
+    });
+    await ctx.answerCbQuery('Выбран русский язык.');
+
+    // Start flow
+    const firstQuestion = await prisma.question.findFirst({
+        where: { isActive: true },
+        orderBy: { id: 'asc' }
+    });
+
+    if (firstQuestion) {
+        await sendQuestion(ctx, firstQuestion.id);
     }
 });
 
@@ -269,7 +335,8 @@ bot.on('text', async (ctx) => {
 
             if (nextId) {
                 if (nextId === -1) {
-                    await ctx.reply('Söhbət bitdi. Təşəkkürlər!');
+                    const msg = user.language === 'ru' ? 'Разговор окончен. Спасибо!' : 'Söhbət bitdi. Təşəkkürlər!';
+                    await ctx.reply(msg);
                 } else {
                     await sendQuestion(ctx, nextId);
                 }
