@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { Download, X, MessageSquare, Loader2 } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface Message {
     id: number;
@@ -44,6 +46,47 @@ const DialogUserList = () => {
             .catch(err => console.error('Failed to load users', err))
             .finally(() => setLoading(false));
     }, []);
+
+    const downloadPDF = (user: UserData) => {
+        const doc = new jsPDF();
+
+        // Add Header
+        doc.setFontSize(16);
+        doc.text(`Dialog: ${user.name}`, 14, 20);
+
+        doc.setFontSize(10);
+        doc.text(`ID: ${user.id} | Status: ${user.isAnonim ? 'Anonim' : 'Registered'}`, 14, 28);
+        doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, 34);
+
+        // Prepare Table Data
+        const tableBody = user.messages.map(msg => [
+            msg.sender === 'bot' ? 'Bot' : 'User',
+            msg.time,
+            msg.text
+        ]);
+
+        // Add Table
+        autoTable(doc, {
+            startY: 40,
+            head: [['Sender', 'Time', 'Message']],
+            body: tableBody,
+            styles: { fontSize: 9 },
+            headStyles: { fillColor: [66, 133, 244] }, // Blue header
+            columnStyles: {
+                0: { cellWidth: 20 },
+                1: { cellWidth: 30 },
+                2: { cellWidth: 'auto' }
+            },
+            didParseCell: (data) => {
+                // Color code rows based on sender
+                if (data.section === 'body' && data.row.raw[0] === 'Bot') {
+                    data.cell.styles.fillColor = [240, 248, 255]; // Light blue for bot
+                }
+            }
+        });
+
+        doc.save(`dialog_${user.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`);
+    };
 
     if (loading) {
         return (
@@ -89,10 +132,10 @@ const DialogUserList = () => {
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    alert(`Downloading dialog for ${user.name}`);
+                                    downloadPDF(user);
                                 }}
                                 className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
-                                title="Download Dialog"
+                                title="PDF Yüklə"
                             >
                                 <Download className="w-5 h-5" />
                             </button>
