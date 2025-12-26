@@ -2,8 +2,11 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
 // GET: Fetch all questions
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
     try {
+        console.log('GET /api/questions called');
         const questions = await prisma.question.findMany({
             include: { buttons: true },
             orderBy: { id: 'asc' }
