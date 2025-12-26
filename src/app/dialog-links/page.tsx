@@ -1,3 +1,4 @@
+// force rebuild
 export default function DialogLinksPage() {
     return (
         <div className="h-[calc(100vh-100px)] bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden flex flex-col">
