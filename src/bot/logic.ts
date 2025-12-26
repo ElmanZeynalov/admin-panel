@@ -48,6 +48,7 @@ const getOrCreateUser = async (ctx: any) => {
 };
 
 // Dynamic Link Replacement
+// Dynamic Link Replacement
 const replaceLinks = (text: string, linkUrl: string | null, linkText: string | null, lang: string) => {
     if (!linkUrl || !text) return text;
 
@@ -59,10 +60,17 @@ const replaceLinks = (text: string, linkUrl: string | null, linkText: string | n
     const defaultLinkText = lang === 'ru' ? 'здесь' : 'burada';
     const targetText = linkText || defaultLinkText;
 
-    // Case-insensitive replacement of the target word with HTML link
-    // Escaping regex characters in targetText is safer but let's assume simple text for now
-    const regex = new RegExp(`(${targetText})`, 'gi');
-    return text.replace(regex, `<a href="${url}">$1</a>`);
+    // Escape regex special characters
+    const escapedTarget = targetText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`(${escapedTarget})`, 'gi');
+
+    // If match found, replace
+    if (regex.test(text)) {
+        return text.replace(regex, `<a href="${url}">$1</a>`);
+    }
+
+    // Otherwise, append
+    return `${text}\n\n<a href="${url}">${targetText}</a>`;
 };
 
 // The Core Function: Send a Node (Category or Question/Answer)

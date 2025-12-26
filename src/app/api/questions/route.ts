@@ -163,6 +163,9 @@ export async function POST(request: Request) {
                     isActive: true,
                     answer: body.answer,
                     answerRu: body.answerRu,
+                    externalLink: body.externalLink,
+                    linkText: body.linkText,
+                    linkTextRu: body.linkTextRu,
                     attachment: body.attachment ? JSON.stringify(body.attachment) : null
                 }
             });
