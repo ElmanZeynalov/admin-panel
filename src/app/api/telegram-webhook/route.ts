@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
     try {
+        console.log(' Telegram Webhook Received');
         const body = await req.json();
         await bot.handleUpdate(body);
         return NextResponse.json({ ok: true });

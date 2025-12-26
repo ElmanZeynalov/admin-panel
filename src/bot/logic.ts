@@ -66,37 +66,42 @@ const replaceLinks = (text: string, linkUrl: string | null, linkText: string | n
 };
 
 // The Core Function: Send a Node (Category or Question/Answer)
+// The Core Function: Send a Node (Category or Question/Answer)
 const sendNode = async (ctx: any, nodeId: number | null) => {
-    const user = await getOrCreateUser(ctx);
+    // Optimization: Fetch User and Data in parallel
+    const userPromise = getOrCreateUser(ctx);
+
+    let itemsPromise: Promise<Question[]>;
+    let parentNodePromise: Promise<Question | null>;
+
+    if (nodeId === null) {
+        itemsPromise = prisma.question.findMany({
+            where: { parentId: null, isActive: true },
+            orderBy: { id: 'asc' }
+        });
+        parentNodePromise = Promise.resolve(null);
+    } else {
+        if (typeof nodeId !== 'number' || isNaN(nodeId)) {
+            console.error('sendNode Error: Invalid Node ID:', nodeId);
+            return;
+        }
+        parentNodePromise = prisma.question.findUnique({ where: { id: nodeId } });
+        itemsPromise = prisma.question.findMany({
+            where: { parentId: nodeId, isActive: true },
+            orderBy: { id: 'asc' }
+        });
+    }
+
+    const [user, items, parentNode] = await Promise.all([
+        userPromise,
+        itemsPromise,
+        parentNodePromise
+    ]);
+
     const lang = user.language === 'ru' ? 'ru' : 'az';
+    const isRoot = nodeId === null;
 
     try {
-        let items: Question[] = [];
-        let parentNode: Question | null = null;
-        let isRoot = false;
-
-        // 1. Fetch Data
-        if (nodeId === null) {
-            // Root Level: Fetch Categories (parentId = null)
-            items = await prisma.question.findMany({
-                where: { parentId: null, isActive: true },
-                orderBy: { id: 'asc' }
-            });
-            isRoot = true;
-        } else {
-            // Specific Node
-            if (typeof nodeId !== 'number' || isNaN(nodeId)) {
-                console.error('sendNode Error: Invalid Node ID:', nodeId);
-                return;
-            }
-            parentNode = await prisma.question.findUnique({ where: { id: nodeId } });
-
-            // Check if this node has children
-            items = await prisma.question.findMany({
-                where: { parentId: nodeId, isActive: true },
-                orderBy: { id: 'asc' }
-            });
-        }
 
         // 2. Logic: Is it a Menu (has children) or an Answer (no children)?
         const isMenu = items.length > 0 || isRoot;
