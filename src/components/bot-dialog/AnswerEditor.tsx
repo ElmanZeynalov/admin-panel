@@ -120,7 +120,7 @@ const AnswerEditor = ({ question, onUpdate }: AnswerEditorProps) => {
                         {localAnswer && <span className="text-[10px] text-green-600 bg-green-50 px-1.5 py-0.5 rounded">Saved</span>}
                     </label>
                     <textarea
-                        className="w-full h-32 px-3 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-sm leading-relaxed resize-none shadow-sm placeholder:text-gray-300"
+                        className="w-full h-32 px-3 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-sm text-black leading-relaxed resize-none shadow-sm placeholder:text-gray-300"
                         value={localAnswer}
                         onChange={(e) => setLocalAnswer(e.target.value)}
                         placeholder="Write the bot's response here..."
@@ -134,7 +134,7 @@ const AnswerEditor = ({ question, onUpdate }: AnswerEditorProps) => {
                         <span className="text-[10px] text-gray-400 font-normal">Optional</span>
                     </label>
                     <textarea
-                        className="w-full h-24 px-3 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-sm leading-relaxed resize-none shadow-sm placeholder:text-gray-300"
+                        className="w-full h-24 px-3 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-sm text-black leading-relaxed resize-none shadow-sm placeholder:text-gray-300"
                         value={localAnswerRu}
                         onChange={(e) => setLocalAnswerRu(e.target.value)}
                         placeholder="Russian translation..."
@@ -204,7 +204,7 @@ const AnswerEditor = ({ question, onUpdate }: AnswerEditorProps) => {
                     <div className="space-y-2">
                         <input
                             type="text"
-                            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-sm shadow-sm placeholder:text-gray-300"
+                            className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-sm text-black shadow-sm placeholder:text-gray-300"
                             value={localExternalLink}
                             onChange={(e) => setLocalExternalLink(e.target.value)}
                             placeholder="https://example.com"
@@ -212,14 +212,14 @@ const AnswerEditor = ({ question, onUpdate }: AnswerEditorProps) => {
                         <div className="grid grid-cols-2 gap-2">
                             <input
                                 type="text"
-                                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-sm shadow-sm placeholder:text-gray-300"
+                                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-sm text-black shadow-sm placeholder:text-gray-300"
                                 value={localLinkText}
                                 onChange={(e) => setLocalLinkText(e.target.value)}
                                 placeholder="Link Text (AZ)"
                             />
                             <input
                                 type="text"
-                                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-sm shadow-sm placeholder:text-gray-300"
+                                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none text-sm text-black shadow-sm placeholder:text-gray-300"
                                 value={localLinkTextRu}
                                 onChange={(e) => setLocalLinkTextRu(e.target.value)}
                                 placeholder="Link Text (RU)"

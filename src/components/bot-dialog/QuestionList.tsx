@@ -97,7 +97,7 @@ const QuestionList = ({ category, questions, selectedId, onSelect, onAdd, onUpda
                                 <div className="flex-1 flex flex-col gap-1">
                                     <input
                                         type="text"
-                                        className="w-full bg-gray-50 border border-indigo-300 rounded px-1.5 py-1 text-xs outline-none focus:ring-1 focus:ring-indigo-500"
+                                        className="w-full bg-gray-50 border border-indigo-300 rounded px-1.5 py-1 text-xs text-black outline-none focus:ring-1 focus:ring-indigo-500"
                                         value={editValue}
                                         onChange={(e) => setEditValue(e.target.value)}
                                         onClick={(e) => e.stopPropagation()}
@@ -106,7 +106,16 @@ const QuestionList = ({ category, questions, selectedId, onSelect, onAdd, onUpda
                                     />
                                     <input
                                         type="text"
-                                        className="w-full bg-gray-50 border border-indigo-300 rounded px-1.5 py-1 text-xs outline-none focus:ring-1 focus:ring-indigo-500"
+                                        className="w-full bg-gray-50 border border-indigo-300 rounded px-1.5 py-1 text-xs text-black outline-none focus:ring-1 focus:ring-indigo-500"
+                                        value={editValue}
+                                        onChange={(e) => setEditValue(e.target.value)}
+                                        onClick={(e) => e.stopPropagation()}
+                                        placeholder="Question (AZ)"
+                                        autoFocus
+                                    />
+                                    <input
+                                        type="text"
+                                        className="w-full bg-gray-50 border border-indigo-300 rounded px-1.5 py-1 text-xs text-black outline-none focus:ring-1 focus:ring-indigo-500"
                                         value={editValueRu}
                                         onChange={(e) => setEditValueRu(e.target.value)}
                                         onClick={(e) => e.stopPropagation()}
@@ -120,7 +129,7 @@ const QuestionList = ({ category, questions, selectedId, onSelect, onAdd, onUpda
                             ) : (
                                 <>
                                     <div className="flex-1 flex flex-col min-w-0">
-                                        <span className={`truncate font-medium ${isSelected ? 'text-gray-900' : 'text-gray-700'}`}>
+                                        <span className={`truncate font-medium ${isSelected ? 'text-black' : 'text-gray-900'}`}>
                                             {q.text || 'Untitled'}
                                         </span>
                                         {q.textRu && <span className="truncate text-xs text-gray-400 font-normal">{q.textRu}</span>}

@@ -83,7 +83,7 @@ const CategorySidebar = ({ categories, selectedId, onSelect, onAdd, onUpdate, on
                             className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 group relative cursor-pointer
                                 ${isSelected
                                     ? 'bg-indigo-50 text-indigo-700 shadow-sm ring-1 ring-indigo-200'
-                                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                                    : 'text-gray-900 hover:bg-gray-50 hover:text-black'
                                 }
                             `}
                         >
@@ -95,7 +95,7 @@ const CategorySidebar = ({ categories, selectedId, onSelect, onAdd, onUpdate, on
                                 <div className="flex-1 flex flex-col gap-1">
                                     <input
                                         type="text"
-                                        className="w-full bg-white border border-indigo-300 rounded px-1.5 py-1 text-xs outline-none focus:ring-1 focus:ring-indigo-500"
+                                        className="w-full bg-white border border-indigo-300 rounded px-1.5 py-1 text-xs text-gray-900 outline-none focus:ring-1 focus:ring-indigo-500"
                                         value={editValue}
                                         onChange={(e) => setEditValue(e.target.value)}
                                         onClick={(e) => e.stopPropagation()}
@@ -104,7 +104,7 @@ const CategorySidebar = ({ categories, selectedId, onSelect, onAdd, onUpdate, on
                                     />
                                     <input
                                         type="text"
-                                        className="w-full bg-white border border-indigo-300 rounded px-1.5 py-1 text-xs outline-none focus:ring-1 focus:ring-indigo-500"
+                                        className="w-full bg-white border border-indigo-300 rounded px-1.5 py-1 text-xs text-gray-900 outline-none focus:ring-1 focus:ring-indigo-500"
                                         value={editValueRu}
                                         onChange={(e) => setEditValueRu(e.target.value)}
                                         onClick={(e) => e.stopPropagation()}
@@ -118,7 +118,7 @@ const CategorySidebar = ({ categories, selectedId, onSelect, onAdd, onUpdate, on
                             ) : (
                                 <>
                                     <div className="flex-1 flex flex-col min-w-0">
-                                        <span className="truncate">{cat.text || 'Untitled'}</span>
+                                        <span className="truncate text-gray-900 font-medium">{cat.text || 'Untitled'}</span>
                                         {cat.textRu && <span className="truncate text-xs text-gray-400 font-normal">{cat.textRu}</span>}
                                     </div>
 
