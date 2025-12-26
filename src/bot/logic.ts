@@ -105,7 +105,7 @@ const sendNode = async (ctx: any, nodeId: number | null) => {
             // --- RENDER MENU ---
 
             let messageText = '';
-            let buttons: any[] = [];
+            let buttons = [] as any[];
 
             if (isRoot) {
                 // CATEGORIES (Keep as Full Text Buttons)
@@ -122,7 +122,7 @@ const sendNode = async (ctx: any, nodeId: number | null) => {
                 messageText = `<b>${header}</b>\n\n`; // Bold Category Title
 
                 // Build List and Buttons
-                const gridButtons: ReturnType<typeof Markup.button.callback>[] = [];
+                const gridButtons = [] as any[];
                 items.forEach((item, index) => {
                     const txt = (lang === 'ru' && item.textRu) ? item.textRu : item.text;
                     const num = index + 1;
