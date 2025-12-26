@@ -122,7 +122,7 @@ const sendNode = async (ctx: any, nodeId: number | null) => {
                 messageText = `<b>${header}</b>\n\n`; // Bold Category Title
 
                 // Build List and Buttons
-                const gridButtons: any[] = [];
+                const gridButtons: ReturnType<typeof Markup.button.callback>[] = [];
                 items.forEach((item, index) => {
                     const txt = (lang === 'ru' && item.textRu) ? item.textRu : item.text;
                     const num = index + 1;
