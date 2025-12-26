@@ -1,176 +1,185 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Plus, Save, Loader2 } from 'lucide-react';
-import { Question, NewQuestionState } from './bot-dialog/types';
+import { useState, useEffect, useMemo } from 'react';
+import { Question } from './bot-dialog/types';
+import CategorySidebar from './bot-dialog/CategorySidebar';
 import QuestionList from './bot-dialog/QuestionList';
-import BotPreview from './bot-dialog/BotPreview';
-import QuestionFormModal from './bot-dialog/QuestionFormModal';
+import AnswerEditor from './bot-dialog/AnswerEditor';
+import { Save, Loader2 } from 'lucide-react';
 
 const BotDialogEditor = () => {
     const [questions, setQuestions] = useState<Question[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
+    const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingId, setEditingId] = useState<number | null>(null);
+    // Selection State
+    const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
+    const [selectedQuestionId, setSelectedQuestionId] = useState<number | null>(null);
 
-    // Load initial data
+    // Initial Load
     useEffect(() => {
         fetch('/api/questions')
             .then(res => res.json())
             .then(data => {
-                if (Array.isArray(data) && data.length > 0) {
+                if (Array.isArray(data)) {
                     setQuestions(data);
-                } else {
-                    // Fallback default if DB is empty
-                    setQuestions([
-                        {
-                            id: 1,
-                            text: 'Salam! Ad və Soyad',
-                            isActive: true,
-                            buttons: [{ id: 1, text: 'ANONİM' }]
-                        },
-                    ]);
                 }
             })
             .catch(err => console.error('Failed to load questions:', err))
             .finally(() => setIsLoading(false));
     }, []);
 
-    const saveToDatabase = async () => {
+    // Derived State
+    const categories = useMemo(() => questions.filter(q => q.parentId === null), [questions]);
+    const activeQuestions = useMemo(() =>
+        selectedCategoryId
+            ? questions.filter(q => q.parentId === selectedCategoryId)
+            : []
+        , [questions, selectedCategoryId]);
+
+    const selectedCategory = questions.find(q => q.id === selectedCategoryId);
+    const selectedQuestion = questions.find(q => q.id === selectedQuestionId);
+
+    // --- Helpers ---
+    const markChanged = () => setHasUnsavedChanges(true);
+    // Use negative random IDs to avoid collision with DB auto-increment (and fit in Int4)
+    const generateTempId = () => -Math.floor(Math.random() * 1000000000);
+
+    // --- Local Handlers (NO API CALLS) ---
+
+    // 1. Create Category
+    const handleAddCategory = () => {
+        const tempId = generateTempId(); // Safe negative ID
+        const newCat: Question = { id: tempId, text: 'New Category', isActive: true, parentId: null };
+        setQuestions(prev => [...prev, newCat]);
+        setSelectedCategoryId(tempId);
+        markChanged();
+    };
+
+    // 2. Update Category/Question (Generic)
+    const handleUpdateGeneric = (id: number, updates: Partial<Question>) => {
+        setQuestions(prev => prev.map(q => q.id === id ? { ...q, ...updates } : q));
+        markChanged();
+    };
+
+    // 3. Delete Category
+    const handleDeleteCategory = (id: number) => {
+        setQuestions(prev => prev.filter(q => q.id !== id && q.parentId !== id));
+        if (selectedCategoryId === id) {
+            setSelectedCategoryId(null);
+            setSelectedQuestionId(null);
+        }
+        markChanged();
+    };
+
+    // 4. Create Question
+    const handleAddQuestion = () => {
+        if (!selectedCategoryId) return;
+        const tempId = generateTempId();
+        const newQ: Question = { id: tempId, text: 'New Question', isActive: true, parentId: selectedCategoryId, answer: '' };
+        setQuestions(prev => [...prev, newQ]);
+        setSelectedQuestionId(tempId);
+        markChanged();
+    };
+
+    // 5. Delete Question
+    const handleDeleteQuestion = (id: number) => {
+        setQuestions(prev => prev.filter(q => q.id !== id));
+        if (selectedQuestionId === id) setSelectedQuestionId(null);
+        markChanged();
+    };
+
+    // --- GLOBAL SAVE ---
+    const handleSaveAll = async () => {
+        if (!hasUnsavedChanges) return;
+
         setIsSaving(true);
         try {
             const res = await fetch('/api/questions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(questions)
+                body: JSON.stringify(questions) // Send EVERYTHING
             });
-            if (!res.ok) {
-                const errorData = await res.json().catch(() => ({}));
-                throw new Error(errorData.error || 'Failed to save');
-            }
-            alert('Məlumatlar yadda saxlanıldı!');
-        } catch (err: any) {
-            console.error(err);
-            alert(`Xəta baş verdi: ${err.message}`);
+
+            if (!res.ok) throw new Error('Save failed');
+
+            const savedData: Question[] = await res.json();
+
+            // Sync local state with server state (gets real IDs back)
+            setQuestions(savedData);
+
+            // We need to try and preserve selection if possible.
+            // But IDs might have changed from Negative -> Positive.
+            // A simple strategy is to deselect or just leave as is if ID matched.
+            // If the user was editing a new item (ID -1), and it became ID 50, selection breaks.
+            // For now, let's just clear selection to avoid confusion, or keep it if ID exists.
+
+            // Advanced: Map old temp IDs to new IDs using text/parentId matching?
+            // Since we replaced the whole state, 'selectedCategoryId' might point to a stale ID.
+            // Let's reset selection to be safe for this iteration.
+            setSelectedCategoryId(null);
+            setSelectedQuestionId(null);
+
+            setHasUnsavedChanges(false);
+            alert('Saved successfully!');
+        } catch (e: any) {
+            console.error(e);
+            alert(`Error saving data: ${e.message || 'Unknown error'}`);
         } finally {
             setIsSaving(false);
         }
     };
 
-    const openAddModal = () => {
-        setEditingId(null);
-        setIsModalOpen(true);
-    };
-
-    const openEditModal = (question: Question) => {
-        setEditingId(question.id);
-        setIsModalOpen(true);
-    };
-
-    const handleSaveQuestion = (data: NewQuestionState) => {
-        if (!data.text.trim() && !data.attachment) return;
-
-        if (editingId !== null) {
-            // Update existing question
-            setQuestions(questions.map((q) =>
-                q.id === editingId
-                    ? {
-                        ...q,
-                        text: data.text,
-                        textRu: data.textRu,
-                        buttons: data.buttons.filter(b => b.text.trim()),
-                        attachment: data.attachment,
-                        externalLink: data.externalLink,
-                        defaultNextId: data.defaultNextId
-                    }
-                    : q
-            ));
-        } else {
-            // Create new question
-            const newId = Math.max(...questions.map((q) => q.id), 0) + 1;
-            setQuestions([...questions, {
-                id: newId,
-                text: data.text,
-                textRu: data.textRu,
-                isActive: true,
-                buttons: data.buttons.filter(b => b.text.trim()),
-                attachment: data.attachment,
-                externalLink: data.externalLink,
-                defaultNextId: data.defaultNextId
-            }]);
-        }
-        setIsModalOpen(false);
-        setEditingId(null);
-    };
-
-    const toggleActive = (id: number) => {
-        setQuestions(questions.map((q) => (q.id === id ? { ...q, isActive: !q.isActive } : q)));
-    };
-
-    const deleteQuestion = (id: number) => {
-        setQuestions(questions.filter((q) => q.id !== id));
-    };
-
-    const getEditingQuestion = () => {
-        return editingId ? questions.find(q => q.id === editingId) : null;
-    };
+    if (isLoading) return <div className="h-[calc(100vh-100px)] flex items-center justify-center">Loading Data...</div>;
 
     return (
-        <div className="flex flex-col lg:flex-row h-[calc(100vh-140px)] gap-8">
-            {/* Left Side: Question Editor */}
-            <div className="flex-1 flex flex-col bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                    <div>
-                        <h2 className="text-xl font-bold text-gray-900">Sual Redaktoru</h2>
-                        <p className="text-sm text-gray-500 mt-1">Botun istifadəçiyə verəcəyi sualları idarə edin</p>
-                    </div>
-                    <div className="flex gap-3">
-                        <button
-                            onClick={saveToDatabase}
-                            disabled={isSaving}
-                            className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all shadow-sm hover:shadow-md active:scale-95 text-sm font-medium disabled:opacity-50"
-                        >
-                            {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-                            Yadda Saxla
-                        </button>
-                        <button
-                            onClick={openAddModal}
-                            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all shadow-sm hover:shadow-md active:scale-95 text-sm font-medium"
-                        >
-                            <Plus className="w-4 h-4 mr-2" />
-                            Sual Əlavə Et
-                        </button>
-                    </div>
-                </div>
+        <div className="relative h-[calc(100vh-100px)] bg-white border border-gray-200 shadow-xl rounded-2xl overflow-hidden flex">
 
-                {isLoading ? (
-                    <div className="flex-1 flex items-center justify-center">
-                        <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
-                    </div>
-                ) : (
-                    <QuestionList
-                        questions={questions}
-                        onUpdateQuestions={setQuestions}
-                        onEdit={openEditModal}
-                        onDelete={deleteQuestion}
-                        onToggleActive={toggleActive}
-                    />
-                )}
+            {/* FLOATING SAVE BUTTON */}
+            <div className="absolute top-4 right-6 z-50">
+                <button
+                    onClick={handleSaveAll}
+                    disabled={isSaving || !hasUnsavedChanges}
+                    className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold shadow-lg transition-all 
+                        ${hasUnsavedChanges
+                            ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-500/30 hover:scale-105 active:scale-95'
+                            : 'bg-gray-100 text-gray-400 cursor-not-allowed shadow-none'
+                        }`}
+                >
+                    {isSaving ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}
+                    <span>{isSaving ? 'Saving...' : 'Save Changes'}</span>
+                </button>
             </div>
 
-            {/* Right Side: iPhone Preview */}
-            <BotPreview questions={questions} />
+            {/* 1. Sidebar: Categories */}
+            <CategorySidebar
+                categories={categories}
+                selectedId={selectedCategoryId}
+                onSelect={(id) => {
+                    setSelectedCategoryId(id);
+                    setSelectedQuestionId(null);
+                }}
+                onAdd={handleAddCategory}
+                onUpdate={(id, text, textRu) => handleUpdateGeneric(id, { text, textRu })}
+                onDelete={handleDeleteCategory}
+            />
 
-            {/* Modal */}
-            <QuestionFormModal
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                onSave={handleSaveQuestion}
-                initialData={getEditingQuestion()}
-                title={editingId !== null ? 'Sualı Redaktə Et' : 'Yeni Sual Əlavə Et'}
-                existingQuestions={questions}
+            {/* 2. Middle: Question List */}
+            <QuestionList
+                category={selectedCategory}
+                questions={activeQuestions}
+                selectedId={selectedQuestionId}
+                onSelect={setSelectedQuestionId}
+                onAdd={handleAddQuestion}
+                onUpdate={(id, text, textRu) => handleUpdateGeneric(id, { text, textRu })}
+                onDelete={handleDeleteQuestion}
+            />
+
+            {/* 3. Right: Answer Editor */}
+            <AnswerEditor
+                question={selectedQuestion}
+                onUpdate={(id, updates) => handleUpdateGeneric(id, updates)}
             />
         </div>
     );

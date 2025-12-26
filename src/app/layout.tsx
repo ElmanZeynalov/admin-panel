@@ -17,7 +17,7 @@ export default function RootLayout({
 
     return (
         <html lang="en">
-            <body className={`${inter.className} bg-gray-50`}>
+            <body className={`${inter.className} bg-gray-50`} suppressHydrationWarning={true}>
                 <div className="flex h-screen overflow-hidden">
                     <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 

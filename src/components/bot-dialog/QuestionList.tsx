@@ -1,137 +1,160 @@
-import { useState } from 'react';
-import { GripVertical, Trash2, Pencil, FileText, Image as ImageIcon, Paperclip } from 'lucide-react';
+'use client';
+
 import { Question } from './types';
+import { Plus, MessageSquare, Pencil, Trash2, Check, X, ArrowRight } from 'lucide-react';
+import { useState } from 'react';
 
 interface QuestionListProps {
+    category: Question | undefined;
     questions: Question[];
-    onUpdateQuestions: (questions: Question[]) => void;
-    onEdit: (question: Question) => void;
+    selectedId: number | null;
+    onSelect: (id: number) => void;
+    onAdd: () => void;
+    onUpdate: (id: number, text: string, textRu?: string) => void;
     onDelete: (id: number) => void;
-    onToggleActive: (id: number) => void;
 }
 
-const QuestionList = ({ questions, onUpdateQuestions, onEdit, onDelete, onToggleActive }: QuestionListProps) => {
-    const [draggedItem, setDraggedItem] = useState<number | null>(null);
+const QuestionList = ({ category, questions, selectedId, onSelect, onAdd, onUpdate, onDelete }: QuestionListProps) => {
+    const [editingId, setEditingId] = useState<number | null>(null);
+    const [editValue, setEditValue] = useState('');
+    const [editValueRu, setEditValueRu] = useState('');
 
-    const handleDragStart = (e: React.DragEvent, index: number) => {
-        setDraggedItem(index);
-        e.dataTransfer.effectAllowed = "move";
-        // Ghost image improve
-        const ghost = e.currentTarget.cloneNode(true) as HTMLElement;
-        ghost.style.opacity = "0.5";
-        ghost.style.position = "absolute";
-        ghost.style.top = "-1000px";
-        document.body.appendChild(ghost);
-        e.dataTransfer.setDragImage(ghost, 0, 0);
-        setTimeout(() => document.body.removeChild(ghost), 0);
+    const startEditing = (e: React.MouseEvent, q: Question) => {
+        e.stopPropagation();
+        setEditingId(q.id);
+        setEditValue(q.text);
+        setEditValueRu(q.textRu || '');
     };
 
-    const handleDragOver = (e: React.DragEvent, index: number) => {
-        e.preventDefault();
-        if (draggedItem === null || draggedItem === index) return;
-
-        const newQuestions = [...questions];
-        const draggedQuestion = newQuestions[draggedItem];
-        newQuestions.splice(draggedItem, 1);
-        newQuestions.splice(index, 0, draggedQuestion);
-
-        onUpdateQuestions(newQuestions);
-        setDraggedItem(index);
+    const saveEditing = (e: React.MouseEvent, id: number) => {
+        e.stopPropagation();
+        if (editValue.trim()) {
+            onUpdate(id, editValue, editValueRu);
+        }
+        setEditingId(null);
     };
 
-    const handleDragEnd = () => {
-        setDraggedItem(null);
+    const cancelEditing = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setEditingId(null);
     };
+
+    const handleDelete = (e: React.MouseEvent, id: number) => {
+        e.stopPropagation();
+        if (window.confirm('Are you sure you want to delete this key?')) {
+            onDelete(id);
+        }
+    };
+
+    if (!category) {
+        return (
+            <div className="flex-1 flex flex-col items-center justify-center bg-gray-50/50 p-8 text-center border-r border-gray-200">
+                <p className="text-gray-400 text-sm">Select a Category</p>
+            </div>
+        );
+    }
 
     return (
-        <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50/30">
-            {questions.map((question, index) => (
-                <div
-                    key={question.id}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, index)}
-                    onDragOver={(e) => handleDragOver(e, index)}
-                    onDragEnd={handleDragEnd}
-                    className={`group bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 flex items-start gap-4 ${draggedItem === index ? 'opacity-50 border-blue-300 border-dashed' : ''
-                        }`}
-                >
-                    <div className="mt-3 text-gray-400 cursor-grab active:cursor-grabbing hover:text-gray-600">
-                        <GripVertical className="w-5 h-5" />
-                    </div>
-
-                    <div className="flex-1 space-y-3">
-                        <div className="flex justify-between items-start">
-                            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                Sual Mətni
-                            </label>
-                            <div className="flex items-center gap-2">
-                                <span className={`text-xs font-medium ${question.isActive ? 'text-green-600' : 'text-gray-400'}`}>
-                                    {question.isActive ? 'Aktiv' : 'Deaktiv'}
-                                </span>
-                                <button
-                                    onClick={() => onToggleActive(question.id)}
-                                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${question.isActive ? 'bg-blue-600' : 'bg-gray-200'
-                                        }`}
-                                >
-                                    <span
-                                        className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${question.isActive ? 'translate-x-5' : 'translate-x-1'
-                                            }`}
-                                    />
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-800 text-sm">
-                            {question.text}
-                        </div>
-
-                        {question.attachment && (
-                            <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-lg border border-gray-200">
-                                {question.attachment.type === 'image' ? (
-                                    <ImageIcon className="w-4 h-4 text-blue-500" />
-                                ) : (
-                                    <Paperclip className="w-4 h-4 text-orange-500" />
-                                )}
-                                <span className="text-xs text-gray-600 font-medium truncate max-w-[200px]">
-                                    {question.attachment.name}
-                                </span>
-                            </div>
-                        )}
-
-                        {question.buttons && question.buttons.length > 0 && (
-                            <div className="flex flex-wrap gap-2 pt-2">
-                                {question.buttons.map((btn) => (
-                                    <span
-                                        key={btn.id}
-                                        className="inline-flex items-center px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 text-xs font-medium border border-blue-100"
-                                    >
-                                        {btn.text}
-                                    </span>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="flex flex-col gap-2 mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                            onClick={() => onEdit(question)}
-                            className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Düzəliş et"
-                        >
-                            <Pencil className="w-4 h-4" />
-                        </button>
-                        {question.id !== 1 && (
-                            <button
-                                onClick={() => onDelete(question.id)}
-                                className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                title="Sil"
-                            >
-                                <Trash2 className="w-4 h-4" />
-                            </button>
-                        )}
-                    </div>
+        <div className="flex-1 max-w-sm flex flex-col h-full bg-white border-r border-gray-200">
+            {/* Header */}
+            <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                <div className="min-w-0">
+                    <h2 className="font-semibold text-gray-800 truncate">{category.text}</h2>
+                    {category.textRu && <p className="text-xs text-gray-400 truncate">{category.textRu}</p>}
+                    <p className="text-[10px] text-gray-400 mt-0.5 uppercase tracking-wider">keys / questions</p>
                 </div>
-            ))}
+                <button
+                    onClick={onAdd}
+                    className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                    title="Add Question"
+                >
+                    <Plus size={18} />
+                </button>
+            </div>
+
+            {/* List */}
+            <div className="flex-1 overflow-y-auto p-3 space-y-1">
+                {questions.map((q) => {
+                    const isSelected = selectedId === q.id;
+                    const isEditing = editingId === q.id;
+
+                    return (
+                        <div
+                            key={q.id}
+                            onClick={() => !isEditing && onSelect(q.id)}
+                            className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm transition-all duration-200 group relative cursor-pointer border
+                                ${isSelected
+                                    ? 'bg-white border-indigo-500 shadow-md z-10'
+                                    : 'bg-white border-gray-200 hover:border-indigo-300'
+                                }
+                            `}
+                        >
+                            <span className={isSelected ? 'text-indigo-600' : 'text-gray-400'}>
+                                <MessageSquare size={18} />
+                            </span>
+
+                            {isEditing ? (
+                                <div className="flex-1 flex flex-col gap-1">
+                                    <input
+                                        type="text"
+                                        className="w-full bg-gray-50 border border-indigo-300 rounded px-1.5 py-1 text-xs outline-none focus:ring-1 focus:ring-indigo-500"
+                                        value={editValue}
+                                        onChange={(e) => setEditValue(e.target.value)}
+                                        onClick={(e) => e.stopPropagation()}
+                                        placeholder="Question (AZ)"
+                                        autoFocus
+                                    />
+                                    <input
+                                        type="text"
+                                        className="w-full bg-gray-50 border border-indigo-300 rounded px-1.5 py-1 text-xs outline-none focus:ring-1 focus:ring-indigo-500"
+                                        value={editValueRu}
+                                        onChange={(e) => setEditValueRu(e.target.value)}
+                                        onClick={(e) => e.stopPropagation()}
+                                        placeholder="Question (RU)"
+                                    />
+                                    <div className="flex justify-end gap-1 mt-1">
+                                        <button onClick={(e) => saveEditing(e, q.id)} className="bg-green-100 text-green-700 p-1 rounded hover:bg-green-200"><Check size={14} /></button>
+                                        <button onClick={cancelEditing} className="bg-red-100 text-red-700 p-1 rounded hover:bg-red-200"><X size={14} /></button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="flex-1 flex flex-col min-w-0">
+                                        <span className={`truncate font-medium ${isSelected ? 'text-gray-900' : 'text-gray-700'}`}>
+                                            {q.text || 'Untitled'}
+                                        </span>
+                                        {q.textRu && <span className="truncate text-xs text-gray-400 font-normal">{q.textRu}</span>}
+                                    </div>
+
+                                    {/* Edit Tools */}
+                                    <div className={`flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ${isSelected ? 'opacity-100' : ''}`}>
+                                        <button
+                                            onClick={(e) => startEditing(e, q)}
+                                            className="p-1 text-gray-400 hover:text-indigo-600 hover:bg-gray-100 rounded"
+                                        >
+                                            <Pencil size={12} />
+                                        </button>
+                                        <button
+                                            onClick={(e) => handleDelete(e, q.id)}
+                                            className="p-1 text-gray-400 hover:text-red-600 hover:bg-gray-100 rounded"
+                                        >
+                                            <Trash2 size={12} />
+                                        </button>
+                                        {isSelected && <ArrowRight size={14} className="text-indigo-500 ml-1" />}
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    );
+                })}
+
+                {questions.length === 0 && (
+                    <div className="text-center py-8 text-gray-400 text-xs">
+                        No keys yet.
+                        <br />Click + to add one.
+                    </div>
+                )}
+            </div>
         </div>
     );
 };

@@ -1,32 +1,37 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { writeFile } from 'fs/promises';
-import path from 'path';
+import { join } from 'path';
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
     try {
         const data = await request.formData();
         const file: File | null = data.get('file') as unknown as File;
 
         if (!file) {
-            return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
+            return NextResponse.json({ success: false, message: 'No file uploaded' }, { status: 400 });
         }
 
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
 
-        // Create unique filename
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        const filename = uniqueSuffix + '-' + file.name.replace(/\s+/g, '_');
-        const uploadDir = path.join(process.cwd(), 'public', 'uploads');
-        const filepath = path.join(uploadDir, filename);
+        // Ideally you would upload to S3 here.
+        // For now we save to local public folder.
+        const fileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+        const path = join(process.cwd(), 'public', 'uploads', fileName);
 
-        await writeFile(filepath, buffer);
+        await writeFile(path, buffer);
+        console.log(`Saved file to ${path}`);
 
-        const publicUrl = `/uploads/${filename}`;
+        const publicUrl = `/uploads/${fileName}`;
 
-        return NextResponse.json({ url: publicUrl, name: file.name });
-    } catch (error) {
-        console.error('Upload Error:', error);
-        return NextResponse.json({ error: "Upload failed" }, { status: 500 });
+        return NextResponse.json({
+            success: true,
+            url: publicUrl,
+            name: file.name,
+            type: file.type.startsWith('image/') ? 'image' : 'file'
+        });
+    } catch (e: any) {
+        console.error('Upload Error:', e);
+        return NextResponse.json({ success: false, message: e.message }, { status: 500 });
     }
 }

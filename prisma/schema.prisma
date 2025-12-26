@@ -18,6 +18,11 @@ model Question {
   attachment    String?  // Stored as JSON string { type, url, name }
   externalLink  String?  // URL to replace "burada" with
   defaultNextId Int?
+  parentId      Int?     // Parent Question ID (for Categories)
+  answer        String?  // Bot response text
+  answerRu      String?  // Bot response text (Russian)
+  linkText      String?  // Text to replace with link (default 'burada')
+  linkTextRu    String?  // Text to replace with link (Russian)
   buttons       Button[]
 }
 

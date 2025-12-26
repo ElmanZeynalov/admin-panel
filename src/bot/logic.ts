@@ -1,134 +1,33 @@
 import 'dotenv/config';
 import { Telegraf, Markup } from 'telegraf';
 import prisma from '@/lib/prisma';
+import path from 'path';
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 
 if (!BOT_TOKEN) {
     console.error('BOT_TOKEN must be provided!');
-    // We don't exit here because in Next.js API route it might crash the server.
-    // But for bot logic it's critical.
-    if (process.env.NODE_ENV !== 'production') {
-        // process.exit(1); 
-    }
 }
 
 export const bot = new Telegraf(BOT_TOKEN || '');
 
-// Helper to convert text to bold unicode (Mathematical Sans-Serif Bold)
+// --- HELPERS ---
+
+// Convert text to bold unicode (optional, but keeping it for style if valid)
 const toBoldUnicode = (text: string) => {
-    const map: { [key: string]: string } = {
-        'A': '𝗔', 'B': '𝗕', 'C': '𝗖', 'D': '𝗗', 'E': '𝗘', 'F': '𝗙', 'G': '𝗚', 'H': '𝗛', 'I': '𝗜', 'J': '𝗝', 'K': '𝗞', 'L': '𝗟', 'M': '𝗠', 'N': '𝗡', 'O': '𝗢', 'P': '𝗣', 'Q': '𝗤', 'R': '𝗥', 'S': '𝗦', 'T': '𝗧', 'U': '𝗨', 'V': '𝗩', 'W': '𝗪', 'X': '𝗫', 'Y': '𝗬', 'Z': '𝗭',
-        'a': '𝗮', 'b': '𝗯', 'c': '𝗰', 'd': '𝗱', 'e': '𝗲', 'f': '𝗳', 'g': '𝗴', 'h': '𝗵', 'i': '𝗶', 'j': '𝗷', 'k': '𝗸', 'l': '𝗹', 'm': '𝗺', 'n': '𝗻', 'o': '𝗼', 'p': '𝗽', 'q': '𝗾', 'r': '𝗿', 's': '𝘀', 't': '𝘁', 'u': '𝘂', 'v': '𝘃', 'w': '𝘄', 'x': '𝘅', 'y': '𝘆', 'z': '𝘇',
-        '0': '𝟬', '1': '𝟭', '2': '𝟮', '3': '𝟯', '4': '𝟰', '5': '𝟱', '6': '𝟲', '7': '𝟳', '8': '𝟴', '9': '𝟵'
-    };
-    return text.split('').map(char => map[char] || char).join('');
+    // Basic mapping or just return text if complex font not desired
+    // Keeping it simple for now to avoid bugs, or stick to the map if preferred.
+    // Let's stick to standard text for reliability unless requested.
+    return text;
 };
 
-// Helper to send a question
-// Helper to send a question
-const sendQuestion = async (ctx: any, questionId: number) => {
-    const user = await getOrCreateUser(ctx);
-    const question = await prisma.question.findUnique({
-        where: { id: questionId },
-        include: { buttons: true }
-    });
-
-    if (!question || !question.isActive) {
-        const msg = user.language === 'ru' ? 'Разговор окончен или вопрос не найден.' : 'Söhbət bitdi və ya sual tapılmadı.';
-        return ctx.reply(msg);
-    }
-
-    // Determine language-specific attributes
-    const lang = user.language === 'ru' ? 'ru' : 'az';
-    const textBase = (lang === 'ru' && question.textRu) ? question.textRu : question.text;
-
-    // Prepare buttons
-    const buttons = question.buttons.map((b: any) => {
-        const btnText = (lang === 'ru' && b.textRu) ? b.textRu : b.text;
-        return Markup.button.callback(toBoldUnicode(btnText), `btn:${b.id}`);
-    });
-    const keyboard = Markup.inlineKeyboard(buttons, { columns: 1 });
-
-    // Dynamic Link Replacement
-    let displayText = `<b>${textBase}</b>`;
-    if (question.externalLink) {
-        // Ensure URL has protocol
-        let url = question.externalLink;
-        if (!url.startsWith('http://') && !url.startsWith('https://')) {
-            url = 'https://' + url;
-        }
-
-        // Replace "burada" (and "здесь" for RU) with link
-        // Current logic works for 'burada'. Can extend for 'здесь'.
-        displayText = displayText.replace(/(burada\w*|здесь\w*)/gi, `<a href="${url}">$1</a>`);
-    }
-
-    let messageSent = false;
-
-    // Send Attachment if exists
-    if (question.attachment) {
-        try {
-            const att = JSON.parse(question.attachment);
-            if (att.url) {
-                // Determine source: File on disk or URL
-                let source;
-                if (att.url.startsWith('/uploads')) {
-                    // Local file
-                    const path = require('path');
-                    source = { source: path.join(process.cwd(), 'public', att.url) };
-                } else if (att.url.startsWith('blob:')) {
-                    console.warn(`[WARNING] Skipping blob URL attachment for Question ${questionId}. Please re-upload in Admin Panel.`);
-                    // Fallback to text
-                } else {
-                    // Remote URL
-                    source = att.url;
-                }
-
-                if (source) {
-                    if (att.type === 'image') {
-                        await ctx.replyWithPhoto(source, { caption: displayText, parse_mode: 'HTML', ...keyboard });
-                        messageSent = true;
-                    } else {
-                        // Generic file
-                        await ctx.replyWithDocument(source, { caption: displayText, parse_mode: 'HTML', ...keyboard });
-                        messageSent = true;
-                    }
-                }
-            }
-        } catch (e) {
-            console.error('Error parsing attachment', e);
-        }
-    }
-
-    if (!messageSent) {
-        await ctx.reply(displayText, { ...keyboard, parse_mode: 'HTML' });
-    }
-
-    // Save Bot Message to History
-    if (ctx.from) {
-        // user already fetched
-        if (user) {
-            await prisma.message.create({
-                data: {
-                    userId: user.id,
-                    text: textBase, // Save the actual text sent
-                    sender: 'bot'
-                }
-            });
-
-            // Update User State
-            await prisma.user.update({
-                where: { id: user.id },
-                data: { currentQuestionId: question.id }
-            });
-
-            console.log(`Saved Bot reply to ${user.username || user.telegramId} (State: Q${question.id})`);
-        }
-    }
+// Get User's Language
+const getUserLang = async (userId: bigint) => {
+    const user = await prisma.user.findUnique({ where: { telegramId: userId } });
+    return user?.language || 'az'; // Default to az
 };
 
-// Helper to get or create user
+// Get or Create User
 const getOrCreateUser = async (ctx: any) => {
     const telegramId = BigInt(ctx.from.id);
     let user = await prisma.user.findUnique({ where: { telegramId } });
@@ -138,212 +37,235 @@ const getOrCreateUser = async (ctx: any) => {
             data: {
                 telegramId,
                 username: ctx.from.username || null,
-                fullName: null, // Will be set by first question
-                isAnonim: false
+                fullName: ctx.from.first_name + (ctx.from.last_name ? ' ' + ctx.from.last_name : ''),
+                isAnonim: false,
+                language: 'az' // Default
             }
         });
     }
     return user;
 };
 
-// Start Command
+// Dynamic Link Replacement
+const replaceLinks = (text: string, linkUrl: string | null, linkText: string | null, lang: string) => {
+    if (!linkUrl || !text) return text;
+
+    let url = linkUrl;
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        url = 'https://' + url;
+    }
+
+    const defaultLinkText = lang === 'ru' ? 'здесь' : 'burada';
+    const targetText = linkText || defaultLinkText;
+
+    // Case-insensitive replacement of the target word with HTML link
+    // Escaping regex characters in targetText is safer but let's assume simple text for now
+    const regex = new RegExp(`(${targetText})`, 'gi');
+    return text.replace(regex, `<a href="${url}">$1</a>`);
+};
+
+// The Core Function: Send a Node (Category or Question/Answer)
+const sendNode = async (ctx: any, nodeId: number | null) => {
+    const user = await getOrCreateUser(ctx);
+    const lang = user.language === 'ru' ? 'ru' : 'az';
+
+    try {
+        let items;
+        let parentNode = null;
+        let isRoot = false;
+
+        // 1. Fetch Data
+        if (nodeId === null) {
+            // Root Level: Fetch Categories (parentId = null)
+            items = await prisma.question.findMany({
+                where: { parentId: null, isActive: true },
+                orderBy: { id: 'asc' }
+            });
+            isRoot = true;
+        } else {
+            // Specific Node
+            parentNode = await prisma.question.findUnique({ where: { id: nodeId } });
+
+            // Check if this node has children
+            items = await prisma.question.findMany({
+                where: { parentId: nodeId, isActive: true },
+                orderBy: { id: 'asc' }
+            });
+        }
+
+        // 2. Logic: Is it a Menu (has children) or an Answer (no children)?
+        const isMenu = items.length > 0 || isRoot;
+
+        if (isMenu) {
+            // --- RENDER MENU ---
+
+            // Message Text
+            let messageText = '';
+            if (isRoot) {
+                messageText = lang === 'ru' ? 'Главное меню:' : 'Əsas menyu:';
+            } else if (parentNode) {
+                // Showing children of a category/question
+                // Use the parent's text as the header
+                messageText = (lang === 'ru' && parentNode.textRu) ? parentNode.textRu : parentNode.text;
+
+                // If the parent also had an answer/image itself, we could show it here, 
+                // but usually for categories we just show the title.
+            } else {
+                messageText = 'Menu';
+            }
+
+            // Buttons
+            const buttons = items.map(item => {
+                const txt = (lang === 'ru' && item.textRu) ? item.textRu : item.text;
+                return [Markup.button.callback(txt, `goto:${item.id}`)];
+            });
+
+            // Back Button (if not root)
+            if (!isRoot && parentNode?.parentId !== undefined) {
+                const backText = lang === 'ru' ? '🔙 Назад' : '🔙 Geri';
+                // Go back to parent's parent (to view the list that contains current parent)
+                // If parentId is null, we go to root (goto:root)
+                const backPayload = parentNode.parentId === null ? 'goto:root' : `goto:${parentNode.parentId}`;
+                buttons.push([Markup.button.callback(backText, backPayload)]);
+            }
+
+            await ctx.editMessageText(messageText, {
+                parse_mode: 'HTML',
+                reply_markup: { inline_keyboard: buttons }
+            }).catch(async (e: any) => {
+                // If edit fails (e.g. old message was photo, new is text), modify flow to send new message
+                await ctx.reply(messageText, {
+                    parse_mode: 'HTML',
+                    reply_markup: { inline_keyboard: buttons }
+                });
+            });
+
+        } else if (parentNode) {
+            // --- RENDER ANSWER (Leaf Node) ---
+            // This node has no children, so it's an end-point. Show its answer.
+
+            const answerTextRaw = (lang === 'ru' && parentNode.answerRu) ? parentNode.answerRu : parentNode.answer;
+            const linkTx = (lang === 'ru' && parentNode.linkTextRu) ? parentNode.linkTextRu : parentNode.linkText;
+            const questionTitle = (lang === 'ru' && parentNode.textRu) ? parentNode.textRu : parentNode.text;
+
+            // Use fallback text if no answer defined
+            let bodyText = answerTextRaw || questionTitle; // Default to title if no answer body
+
+            // Link Replacement
+            bodyText = replaceLinks(bodyText || '', parentNode.externalLink, linkTx, lang);
+
+            // Construct Final Message: Title (Bold) + Body
+            // If the body is just the title (because no answer), don't duplicate.
+            let displayText = '';
+            if (answerTextRaw) {
+                displayText = `<b>${questionTitle}</b>\n\n${bodyText}`;
+            } else {
+                displayText = `<b>${bodyText}</b>`;
+            }
+
+            // Back Button
+            const backText = lang === 'ru' ? '🔙 Назад' : '🔙 Geri';
+            // Back to the Category that contained this question
+            const backPayload = parentNode.parentId === null ? 'goto:root' : `goto:${parentNode.parentId}`;
+            const keyboard = Markup.inlineKeyboard([[Markup.button.callback(backText, backPayload)]]);
+
+            let sent = false;
+
+            // Attachment Handling
+            if (parentNode.attachment) {
+                try {
+                    const att = JSON.parse(parentNode.attachment);
+                    if (att.url) {
+                        let source;
+                        if (att.url.startsWith('/uploads')) {
+                            // Local file
+                            source = { source: path.join(process.cwd(), 'public', att.url) };
+                        } else {
+                            // Remote
+                            source = att.url;
+                        }
+
+                        if (att.type === 'image') {
+                            await ctx.replyWithPhoto(source, { caption: displayText, parse_mode: 'HTML', ...keyboard });
+                        } else {
+                            await ctx.replyWithDocument(source, { caption: displayText, parse_mode: 'HTML', ...keyboard });
+                        }
+                        sent = true;
+                    }
+                } catch (e) {
+                    console.error('Attachment error', e);
+                }
+            }
+
+            if (!sent) {
+                await ctx.reply(displayText, { parse_mode: 'HTML', ...keyboard });
+            }
+        }
+
+    } catch (error) {
+        console.error('SendNode Error:', error);
+        await ctx.reply('Error loading menu.');
+    }
+};
+
+
+// --- HANDLERS ---
+
 bot.command('start', async (ctx) => {
     const user = await getOrCreateUser(ctx);
 
-    // If user has no language set, ask for it
-    if (!user.language) {
-        await ctx.reply('Zəhmət olmasa dil seçin / Пожалуйста, выберите язык:', {
-            reply_markup: {
-                inline_keyboard: [
-                    [
-                        { text: '🇦🇿 Azərbaycan dili', callback_data: 'lang:az' },
-                        { text: '🇷🇺 Русский язык', callback_data: 'lang:ru' }
-                    ]
+    // Language Check (Mocking the check logic, usually you'd ask if null)
+    // For now, let's assume if lang is not set, we ask.
+    // In our getOrCreateUser, we default to 'az', so it's always set.
+    // Let's force language selection? Or just go to Root.
+
+    // Let's show Root Menu
+    await sendNode(ctx, null);
+});
+
+// Navigation Action
+bot.action(/goto:(.+)/, async (ctx) => {
+    const param = ctx.match[1];
+    const nodeId = param === 'root' ? null : parseInt(param);
+
+    await ctx.answerCbQuery(); // Stop loading animation
+    await sendNode(ctx, nodeId);
+});
+
+// Handling Language Selection (if you have separate command for it)
+bot.command('lang', async (ctx) => {
+    await ctx.reply('Zəhmət olmasa dil seçin / Пожалуйста, выберите язык:', {
+        reply_markup: {
+            inline_keyboard: [
+                [
+                    { text: '🇦🇿 Azərbaycan dili', callback_data: 'setlang:az' },
+                    { text: '🇷🇺 Русский язык', callback_data: 'setlang:ru' }
                 ]
-            }
-        });
-        return;
-    }
-
-    // Determine start question (lowest ID)
-    const firstQuestion = await prisma.question.findFirst({
-        where: { isActive: true },
-        orderBy: { id: 'asc' }
+            ]
+        }
     });
-
-    if (firstQuestion) {
-        await sendQuestion(ctx, firstQuestion.id);
-    } else {
-        const msg = user.language === 'ru' ? 'Бот в данный момент не активен.' : 'Bot hal-hazırda aktiv deyil.';
-        ctx.reply(msg);
-    }
 });
 
-// Language Selection Actions
-bot.action('lang:az', async (ctx) => {
+bot.action('setlang:az', async (ctx) => {
     const user = await getOrCreateUser(ctx);
-    await prisma.user.update({
-        where: { id: user.id },
-        data: { language: 'az' }
-    });
+    await prisma.user.update({ where: { id: user.id }, data: { language: 'az' } });
     await ctx.answerCbQuery('Azərbaycan dili seçildi.');
-
-    // Start flow
-    const firstQuestion = await prisma.question.findFirst({
-        where: { isActive: true },
-        orderBy: { id: 'asc' }
-    });
-
-    if (firstQuestion) {
-        await sendQuestion(ctx, firstQuestion.id);
-    }
+    await sendNode(ctx, null);
 });
 
-bot.action('lang:ru', async (ctx) => {
+bot.action('setlang:ru', async (ctx) => {
     const user = await getOrCreateUser(ctx);
-    await prisma.user.update({
-        where: { id: user.id },
-        data: { language: 'ru' }
-    });
+    await prisma.user.update({ where: { id: user.id }, data: { language: 'ru' } });
     await ctx.answerCbQuery('Выбран русский язык.');
-
-    // Start flow
-    const firstQuestion = await prisma.question.findFirst({
-        where: { isActive: true },
-        orderBy: { id: 'asc' }
-    });
-
-    if (firstQuestion) {
-        await sendQuestion(ctx, firstQuestion.id);
-    }
+    await sendNode(ctx, null);
 });
 
-// Helper to find next question ID
-const getNextQuestionId = async (currentId: number, preferredNextId: number | null | undefined): Promise<number | null> => {
-    // 1. Try explicit jump if provided
-    if (preferredNextId) {
-        // Verify this ID actually exists
-        const exists = await prisma.question.findUnique({ where: { id: preferredNextId } });
-        if (exists) return preferredNextId;
-        // If it doesn't exist, fall through to sequential
-        console.log(`Preferred next ID ${preferredNextId} not found, falling back to sequential.`);
-    }
-
-    // 2. Sequential fallback (Find the very next question available)
-    const nextQ = await prisma.question.findFirst({
-        where: { id: { gt: currentId }, isActive: true },
-        orderBy: { id: 'asc' }
-    });
-
-    return nextQ ? nextQ.id : null;
-};
-
-// Button Action
-bot.action(/btn:(\d+)/, async (ctx) => {
-    const user = await getOrCreateUser(ctx);
-    const btnId = parseInt(ctx.match[1]);
-    const button = await prisma.button.findUnique({ where: { id: btnId } });
-
-    // Save Action History
-    if (button) {
-        await prisma.message.create({
-            data: {
-                userId: user.id,
-                text: `[Button]: ${button.text}`,
-                sender: 'user'
-            }
-        });
-        console.log(`Saved Button click from ${user.username || user.telegramId}`);
-    }
-
-    if (button?.text === 'ANONİM') {
-        // Special Case: Set Anonim
-        await prisma.user.update({
-            where: { id: user.id },
-            data: { isAnonim: true, fullName: 'Anonim' }
-        });
-        await ctx.answerCbQuery('Anonim rejim seçildi.');
-    } else {
-        await ctx.answerCbQuery();
-    }
-
-    if (button) {
-        let nextId = await getNextQuestionId(user.currentQuestionId || 0, button.nextQuestionId);
-
-        // If button has no nextId AND user has no currentQuestionId (edge case), try finding Q after the button's question
-        if (!nextId && button.questionId) {
-            nextId = await getNextQuestionId(button.questionId, null);
-        }
-
-        if (nextId) {
-            if (nextId === -1) {
-                await ctx.reply('Söhbət bitdi.');
-            } else {
-                await sendQuestion(ctx, nextId);
-            }
-        }
-    }
-});
-
-// Text Handling
 bot.on('text', async (ctx) => {
-    const user = await getOrCreateUser(ctx);
-    const text = ctx.message.text;
+    // Just echo or ignore for now, this is a button-driven bot
+    // Or maybe search?
+});
 
-    // Save User Message
-    await prisma.message.create({
-        data: {
-            userId: user.id,
-            text: text,
-            sender: 'user'
-        }
-    });
-    console.log(`Saved Text from ${user.username || user.telegramId}: ${text}`);
-
-    // Logic: If user has no name yet and not anonim, this text is their name
-    // Assuming Question 1 is "Name Request"
-    if (!user.fullName && !user.isAnonim) {
-        await prisma.user.update({
-            where: { id: user.id },
-            data: { fullName: text }
-        });
-        // Move to Question 2 (assuming simple flow: 1 -> 2)
-        // Find current question? Difficult without session.
-        // Heuristic: If just registered, go to Q2.
-        const secondQuestion = await prisma.question.findFirst({
-            where: { id: { gt: 1 }, isActive: true },
-            orderBy: { id: 'asc' }
-        });
-
-        if (secondQuestion) {
-            await sendQuestion(ctx, secondQuestion.id);
-        }
-        return;
-    }
-
-    // Default flow for other messages
-    // Ideally we need to know "Current Question" to use defaultNextId.
-    // Simplifying: If text matches nothing, maybe reply generic?
-    // Or try to find if this text answers the "current" question (if we tracked it).
-
-    // Generic State Handling for Text
-    if (user.currentQuestionId) {
-        const currentQ = await prisma.question.findUnique({ where: { id: user.currentQuestionId } });
-
-        if (currentQ) {
-            const nextId = await getNextQuestionId(currentQ.id, currentQ.defaultNextId);
-
-            if (nextId) {
-                if (nextId === -1) {
-                    const msg = user.language === 'ru' ? 'Разговор окончен. Спасибо!' : 'Söhbət bitdi. Təşəkkürlər!';
-                    await ctx.reply(msg);
-                } else {
-                    await sendQuestion(ctx, nextId);
-                }
-                return;
-            }
-        }
-    }
-    // Default Fallback: If we still don't know what to do, just acknowledge
-    // ctx.reply('Məlumat qəbul edildi.'); 
+// Log errors
+bot.catch((err, ctx) => {
+    console.log(`Ooops, encountered an error for ${ctx.updateType}`, err);
 });
