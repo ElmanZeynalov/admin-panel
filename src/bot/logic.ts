@@ -84,6 +84,10 @@ const sendNode = async (ctx: any, nodeId: number | null) => {
             isRoot = true;
         } else {
             // Specific Node
+            if (typeof nodeId !== 'number' || isNaN(nodeId)) {
+                console.error('sendNode Error: Invalid Node ID:', nodeId);
+                return;
+            }
             parentNode = await prisma.question.findUnique({ where: { id: nodeId } });
 
             // Check if this node has children
@@ -99,47 +103,73 @@ const sendNode = async (ctx: any, nodeId: number | null) => {
         if (isMenu) {
             // --- RENDER MENU ---
 
-            // Message Text
             let messageText = '';
-            if (isRoot) {
-                messageText = lang === 'ru' ? 'Главное меню:' : 'Əsas menyu:';
-            } else if (parentNode) {
-                // Showing children of a category/question
-                // Use the parent's text as the header
-                messageText = (lang === 'ru' && parentNode.textRu) ? parentNode.textRu : parentNode.text;
+            let buttons = [];
 
-                // If the parent also had an answer/image itself, we could show it here, 
-                // but usually for categories we just show the title.
+            if (isRoot) {
+                // CATEGORIES (Keep as Full Text Buttons)
+                messageText = lang === 'ru' ? 'Главное меню:' : 'Əsas menyu:';
+
+                buttons = items.map(item => {
+                    const txt = (lang === 'ru' && item.textRu) ? item.textRu : item.text;
+                    return [Markup.button.callback(txt, `goto:${item.id}`)];
+                });
+
             } else {
-                messageText = 'Menu';
+                // QUESTIONS (Use Numbered List for Readability)
+                const header = (lang === 'ru' && parentNode?.textRu) ? parentNode.textRu : parentNode?.text;
+                messageText = `<b>${header}</b>\n\n`; // Bold Category Title
+
+                // Build List and Buttons
+                const gridButtons = [];
+                items.forEach((item, index) => {
+                    const txt = (lang === 'ru' && item.textRu) ? item.textRu : item.text;
+                    const num = index + 1;
+
+                    // Add text line
+                    messageText += `${num}. ${txt}\n`;
+
+                    // Add number button
+                    gridButtons.push(Markup.button.callback(String(num), `goto:${item.id}`));
+                });
+
+                // Arrange buttons in rows of 5
+                const chunkSize = 5;
+                for (let i = 0; i < gridButtons.length; i += chunkSize) {
+                    buttons.push(gridButtons.slice(i, i + chunkSize));
+                }
             }
 
-            // Buttons
-            const buttons = items.map(item => {
-                const txt = (lang === 'ru' && item.textRu) ? item.textRu : item.text;
-                return [Markup.button.callback(txt, `goto:${item.id}`)];
-            });
-
-            // Back Button (if not root)
+            // Back Button & Home Button (if not root)
             if (!isRoot && parentNode?.parentId !== undefined) {
                 const backText = lang === 'ru' ? '🔙 Назад' : '🔙 Geri';
+                const homeText = lang === 'ru' ? '🏠 Главная' : '🏠 Ana Səhifə';
+
                 // Go back to parent's parent (to view the list that contains current parent)
                 // If parentId is null, we go to root (goto:root)
                 const backPayload = parentNode.parentId === null ? 'goto:root' : `goto:${parentNode.parentId}`;
-                buttons.push([Markup.button.callback(backText, backPayload)]);
+
+                buttons.push([
+                    Markup.button.callback(backText, backPayload),
+                    Markup.button.callback(homeText, 'goto:lang')
+                ]);
             }
 
-            await ctx.editMessageText(messageText, {
+            // Limit message length if it's too huge (Telegram limit 4096)
+            if (messageText.length > 4000) {
+                messageText = messageText.substring(0, 4000) + '...';
+            }
+
+            const sendOptions = {
                 parse_mode: 'HTML',
                 reply_markup: { inline_keyboard: buttons }
-            }).catch(async (e: any) => {
-                // If edit fails (e.g. old message was photo, new is text), modify flow to send new message
-                await ctx.reply(messageText, {
-                    parse_mode: 'HTML',
-                    reply_markup: { inline_keyboard: buttons }
-                });
-            });
+            };
 
+            await ctx.editMessageText(messageText, sendOptions)
+                .catch(async (e: any) => {
+                    // If edit fails (e.g. old message was photo, new is text), modify flow to send new message
+                    await ctx.reply(messageText, sendOptions);
+                });
         } else if (parentNode) {
             // --- RENDER ANSWER (Leaf Node) ---
             // This node has no children, so it's an end-point. Show its answer.
@@ -163,11 +193,17 @@ const sendNode = async (ctx: any, nodeId: number | null) => {
                 displayText = `<b>${bodyText}</b>`;
             }
 
-            // Back Button
+            // Back Button & Home Button
             const backText = lang === 'ru' ? '🔙 Назад' : '🔙 Geri';
+            const homeText = lang === 'ru' ? '🏠 Главная' : '🏠 Ana Səhifə';
+
             // Back to the Category that contained this question
             const backPayload = parentNode.parentId === null ? 'goto:root' : `goto:${parentNode.parentId}`;
-            const keyboard = Markup.inlineKeyboard([[Markup.button.callback(backText, backPayload)]]);
+
+            const keyboard = Markup.inlineKeyboard([[
+                Markup.button.callback(backText, backPayload),
+                Markup.button.callback(homeText, 'goto:lang')
+            ]]);
 
             let sent = false;
 
@@ -211,22 +247,33 @@ const sendNode = async (ctx: any, nodeId: number | null) => {
 
 // --- HANDLERS ---
 
+const sendLangMenu = async (ctx: any) => {
+    await ctx.reply('Salam! / Привет!\n\nZəhmət olmasa dil seçin / Пожалуйста, выберите язык:', {
+        reply_markup: {
+            inline_keyboard: [
+                [
+                    { text: '🇦🇿 Azərbaycan dili', callback_data: 'setlang:az' },
+                    { text: '🇷🇺 Русский язык', callback_data: 'setlang:ru' }
+                ]
+            ]
+        }
+    });
+};
+
 bot.command('start', async (ctx) => {
-    const user = await getOrCreateUser(ctx);
-
-    // Language Check (Mocking the check logic, usually you'd ask if null)
-    // For now, let's assume if lang is not set, we ask.
-    // In our getOrCreateUser, we default to 'az', so it's always set.
-    // Let's force language selection? Or just go to Root.
-
-    // Let's show Root Menu
-    await sendNode(ctx, null);
+    await getOrCreateUser(ctx); // Ensure user exists in DB
+    await sendLangMenu(ctx);
 });
 
 // Navigation Action
-bot.action(/goto:(.+)/, async (ctx) => {
+bot.action('goto:lang', async (ctx) => {
+    await ctx.answerCbQuery();
+    await sendLangMenu(ctx);
+});
+
+bot.action(/^goto:(root|\d+)$/, async (ctx) => {
     const param = ctx.match[1];
-    const nodeId = param === 'root' ? null : parseInt(param);
+    const nodeId = param === 'root' ? null : parseInt(param, 10);
 
     await ctx.answerCbQuery(); // Stop loading animation
     await sendNode(ctx, nodeId);
