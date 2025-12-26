@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { Telegraf, Markup } from 'telegraf';
+import { Question } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import path from 'path';
 
@@ -70,8 +71,8 @@ const sendNode = async (ctx: any, nodeId: number | null) => {
     const lang = user.language === 'ru' ? 'ru' : 'az';
 
     try {
-        let items;
-        let parentNode = null;
+        let items: Question[] = [];
+        let parentNode: Question | null = null;
         let isRoot = false;
 
         // 1. Fetch Data
@@ -104,7 +105,7 @@ const sendNode = async (ctx: any, nodeId: number | null) => {
             // --- RENDER MENU ---
 
             let messageText = '';
-            let buttons = [];
+            let buttons: any[] = [];
 
             if (isRoot) {
                 // CATEGORIES (Keep as Full Text Buttons)
@@ -121,7 +122,7 @@ const sendNode = async (ctx: any, nodeId: number | null) => {
                 messageText = `<b>${header}</b>\n\n`; // Bold Category Title
 
                 // Build List and Buttons
-                const gridButtons = [];
+                const gridButtons: any[] = [];
                 items.forEach((item, index) => {
                     const txt = (lang === 'ru' && item.textRu) ? item.textRu : item.text;
                     const num = index + 1;
